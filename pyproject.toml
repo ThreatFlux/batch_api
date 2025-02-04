@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "threat_model"
+version = "0.1.0"
+authors = [
+    { name="Security Team" },
+]
+description = "Threat model generation for Microsoft 365 and Entra ID"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "anthropic>=0.8.0",
+    "pandas>=2.0.0",
+    "scikit-learn>=1.0.0",
+    "numpy>=1.20.0",
+    "pyyaml>=6.0.0",
+    "jinja2>=3.0.0",
+    "python-dotenv>=1.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pylint>=2.17.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+threat_model = ["prompts/*.yaml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.pylint]
+init-hook='import sys; sys.path.append("src")'
+ignore-patterns=["test_.*?py"]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "E0401",  # import-error
+    "E1101",  # no-member
+]
+extension-pkg-whitelist = ["numpy", "pandas", "sklearn"]
+generated-members = ["numpy.*", "pandas.*", "sklearn.*"]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true

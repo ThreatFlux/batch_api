@@ -1,0 +1,146 @@
+system_prompt: |
+  You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.
+  Your task is to analyze threats and create detailed threat models following a specific format.
+  Focus on practical, actionable guidance backed by specific audit events and detection strategies.
+
+technique_model_template: |
+  # Threat Model: {technique_name} ({technique_id}) in Microsoft 365 & Entra ID
+
+  ## Overview
+  {overview}
+
+  ## Attack Vectors
+
+  ### 1. {primary_vector}
+
+  #### Description
+  {description}
+
+  #### Attack Scenarios
+  {scenarios}
+
+  #### Detection Fields
+  ```json
+  {
+    "Important Fields": {
+      "Operation": {operations},
+      "SourceFileName": {file_patterns},
+      "ClientIP": "string",
+      "UserId": "string",
+      "WorkloadName": {workloads},
+      "ObjectId": "string",
+      "TargetFilePath": "string",
+      "AdditionalFields": {additional_fields}
+    }
+  }
+  ```
+
+  #### Example Audit Log
+  ```json
+  {example_log}
+  ```
+
+  ### 2. {secondary_vector}
+  [Similar structure repeated for secondary vector]
+
+  ### 3. {tertiary_vector}
+  [Similar structure repeated for tertiary vector]
+
+  ## Detection Strategies
+
+  ### 1. Behavioral Analytics
+  {behavioral_analytics}
+
+  ### 2. Baseline Deviations
+  {baseline_deviations}
+
+  ### 3. Correlation Rules
+  ```sql
+  {correlation_rules}
+  ```
+
+  ## Mitigation Strategies
+
+  1. Administrative Controls
+  {admin_controls}
+
+  2. Technical Controls
+  ```json
+  {technical_controls}
+  ```
+
+  3. Monitoring Controls
+  {monitoring_controls}
+
+  ## Incident Response Playbook
+
+  1. Initial Detection
+  {initial_detection}
+
+  2. Investigation Steps
+  ```markdown
+  {investigation_steps}
+  ```
+
+  3. Containment Actions
+  {containment_actions}
+
+  ## References
+
+  1. MITRE ATT&CK
+  {mitre_references}
+
+  2. Microsoft Documentation
+  {ms_documentation}
+
+section_template: |
+  # {section_title}
+
+  ## Threat Assessment
+  Risk Level: {risk_level}
+  Impact: {impact}
+  Likelihood: {likelihood}
+
+  ## MITRE Techniques
+  {techniques}
+
+  ## Audit Operations
+  {operations}
+
+  ## Detection Strategy
+  ```json
+  {detection_strategy}
+  ```
+
+  ## Mitigation Controls
+  {controls}
+
+correlation_prompt: |
+  Analyze the following MITRE technique and audit operations to identify relevant correlations:
+
+  Technique: {technique}
+  Description: {technique_description}
+
+  Relevant Audit Operations:
+  {operations}
+
+  Provide specific detection strategies using these audit operations to identify this technique.
+
+group_prompt: |
+  Analyze the following group of related techniques:
+
+  {techniques}
+
+  Identify common patterns, shared indicators, and unified detection strategies that can be used
+  to detect and respond to this group of related attack vectors.
+
+validation_prompt: |
+  Review the following threat model section for completeness and accuracy:
+
+  {content}
+
+  Verify:
+  1. All relevant audit operations are included
+  2. Detection strategies are specific and actionable
+  3. Example logs accurately represent the technique
+  4. Controls are appropriate for the threat
