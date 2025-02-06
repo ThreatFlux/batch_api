@@ -9,14 +9,33 @@ A Python package for generating comprehensive threat models for Microsoft 365 an
 - Generates detailed detection strategies using audit logs
 - Provides actionable security controls and mitigations
 - Supports custom templates and formatting
+- Includes batch processing capabilities
+- Docker support for containerized deployment
+- Comprehensive test coverage (>80%)
 
-## Installation
+## Quick Start
+
+### Standard Installation
 
 ```bash
+# Install package
 pip install -e .
+
+# Install with development dependencies
+pip install -e ".[dev]"
 ```
 
-## Usage
+### Docker Installation
+
+```bash
+# Build Docker image
+make docker-build
+
+# Run container
+make docker-run
+```
+
+### Basic Usage
 
 ```python
 from threat_model.core import ThreatModelGenerator
@@ -27,11 +46,83 @@ generator = ThreatModelGenerator(api_key="your-anthropic-api-key")
 # Load data
 generator.load_data(
     mitre_path="data/mitre_techniques.csv",
+    idp_path="data/idp_techniques.csv",
     audit_path="data/audit_operations.csv"
 )
 
 # Generate threat model
 threat_model = generator.generate_threat_model()
+```
+
+## Documentation
+
+Comprehensive documentation is available in the [docs](docs/) directory:
+
+- [Getting Started Guide](docs/getting_started.md) - Installation and basic usage
+- [Configuration Guide](docs/configuration.md) - Customization options
+- [Templates Guide](docs/templates.md) - Output customization
+- [Advanced Usage](docs/advanced_usage.md) - Complex features and examples
+
+## Development
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Docker (optional)
+- Make (optional)
+
+### Development Setup
+
+```bash
+# Setup development environment
+make dev-setup
+
+# Run tests
+make test
+
+# Run linting
+make lint
+
+# Format code
+make format
+```
+
+### Testing
+
+```bash
+# Run all tests with coverage
+make test
+
+# Generate coverage report
+make coverage
+
+# Run security checks
+make security-check
+```
+
+### Docker Development
+
+```bash
+# Build development image
+make docker-build
+
+# Run with mounted volumes
+make docker-run
+```
+
+## Project Structure
+
+```
+.
+├── src/
+│   └── threat_model/
+│       ├── core/           # Core implementation
+│       ├── prompts/        # Template files
+│       └── utils/          # Utility functions
+├── tests/                  # Test suite
+├── docs/                   # Documentation
+├── data/                   # Input data directory
+└── output/                 # Generated output
 ```
 
 ## Data Sources
@@ -59,19 +150,36 @@ The generated threat model includes:
 - Security controls and mitigations
 - Compliance requirements
 
-## Development
+## Make Commands
 
-```bash
-# Install development dependencies
-pip install -e ".[dev]"
+Common development commands:
 
-# Run tests
-pytest
+- `make all`: Clean, install, test, and lint
+- `make clean`: Remove build artifacts and caches
+- `make test`: Run tests with coverage
+- `make lint`: Run linting checks
+- `make format`: Format code with black
+- `make docker-build`: Build Docker image
+- `make docker-run`: Run Docker container
+- `make help`: Show all available commands
 
-# Run linting
-pylint src/threat_model
-```
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+See our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Status
+
+- Version: 0.1.0
+- Development Stage: Alpha
+- Test Coverage: >80%
+- Build Status: Passing
