@@ -37,17 +37,37 @@ make docker-run
 
 ### Basic Usage
 
+#### Recommended Starting Command
+```bash
+# Using default CSV files (recommended)
+python -m threat_model \
+    --mitre-path office_suite_description_mitre_dump.csv \
+    --idp-path idp_description_mitre_dump.csv \
+    --audit-path audit_operations.csv \
+    --output threat_model.md \
+    --batch
+
+# Or simply use Make
+make run
+```
+
+The tool comes with pre-configured default CSV files:
+- office_suite_description_mitre_dump.csv (MITRE techniques)
+- idp_description_mitre_dump.csv (IDP techniques)
+- audit_operations.csv (Audit operations)
+
+#### Python API Usage
 ```python
 from threat_model.core import ThreatModelGenerator
 
 # Initialize generator
 generator = ThreatModelGenerator(api_key="your-anthropic-api-key")
 
-# Load data
+# Load data (using default paths)
 generator.load_data(
-    mitre_path="data/mitre_techniques.csv",
-    idp_path="data/idp_techniques.csv",
-    audit_path="data/audit_operations.csv"
+    mitre_path="office_suite_description_mitre_dump.csv",
+    idp_path="idp_description_mitre_dump.csv",
+    audit_path="audit_operations.csv"
 )
 
 # Generate threat model

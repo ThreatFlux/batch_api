@@ -8,6 +8,13 @@ python-dotenv>=1.0.0
 
 # Development dependencies
 pytest>=7.0.0
+pytest-xdist>=3.3.0  # For parallel test execution
+pytest-cov>=4.1.0    # For coverage reporting
+pytest-html>=4.1.0   # For HTML test reports
+pytest-timeout>=2.1.0 # For test timeouts
+pytest-sugar>=1.0.0  # For better test progress visualization
 pylint>=2.17.0
 black>=23.0.0
 mypy>=1.0.0
+bandit>=1.7.0        # For security checks
+safety>=2.3.0        # For dependency security checks

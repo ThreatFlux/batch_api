@@ -12,7 +12,7 @@ IMAGE_TAG := latest
 
 # Python settings
 VENV := venv
-PYTHON_VERSION := 3.8
+PYTHON_VERSION := 3.13
 SRC_DIR := src
 TEST_DIR := tests
 
@@ -30,7 +30,7 @@ $(VENV)/bin/activate:
 # Install dependencies
 install: $(VENV)/bin/activate
 
-# Clean up
+# Clean up build artifacts and test results
 clean:
 	rm -rf $(VENV)
 	rm -rf build/
@@ -39,22 +39,32 @@ clean:
 	rm -rf .pytest_cache
 	rm -rf .coverage
 	rm -rf htmlcov/
+	rm -rf test-results.xml
+	rm -rf junit/
+	rm -rf .mypy_cache/
+	rm -rf reports/
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	find . -type f -name "*.pyd" -delete
 	find . -type f -name ".coverage" -delete
 	find . -type f -name "coverage.xml" -delete
+	find . -type f -name "test-results.xml" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 
-# Run tests
+# Run tests with coverage reporting
 test: install
-	$(VENV)/bin/pytest $(TEST_DIR) -v --cov=$(SRC_DIR) --cov-report=term-missing
+	$(VENV)/bin/pytest tests/ -v \
+		--cov=src --cov-report=term-missing --cov-report=html
 
-# Run linting
+# Run fast tests (no coverage) for quick feedback
+test-fast: install
+	$(VENV)/bin/pytest tests/ -v
+
+# Run linting and type checking
 lint: install
-	$(VENV)/bin/pylint $(SRC_DIR) $(TEST_DIR)
-	$(VENV)/bin/mypy $(SRC_DIR)
+	$(VENV)/bin/pylint $(SRC_DIR) $(TEST_DIR) --output-format=parseable --reports=yes
+	$(VENV)/bin/mypy $(SRC_DIR) --show-error-codes --pretty
 
 # Format code
 format: install
@@ -64,25 +74,41 @@ format: install
 docker-build:
 	$(DOCKER) build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
-# Run Docker container
+# Run Docker container with default settings
 docker-run:
 	$(DOCKER) run --rm -it \
-		-v $(PWD)/data:/app/data \
+		-v $(PWD):/app/data \
 		-v $(PWD)/output:/app/output \
 		--env-file .env \
-		$(IMAGE_NAME):$(IMAGE_TAG)
+		$(IMAGE_NAME):$(IMAGE_TAG) \
+		--mitre-path office_suite_description_mitre_dump.csv \
+		--idp-path idp_description_mitre_dump.csv \
+		--audit-path audit_operations.csv \
+		--output threat_model.md \
+		--batch
 
 # Development setup
 dev-setup: install
 	$(VENV)/bin/pre-commit install
 
-# Run the application
+# Run the application with default settings
 run: install
-	$(VENV)/bin/python -m threat_model
+	$(VENV)/bin/python -m threat_model \
+		--mitre-path office_suite_description_mitre_dump.csv \
+		--idp-path idp_description_mitre_dump.csv \
+		--audit-path audit_operations.csv \
+		--output threat_model.md \
+		--batch
 
-# Run batch processing
+# Run with custom batch processing
 run-batch: install
-	$(VENV)/bin/python -m threat_model --batch
+	$(VENV)/bin/python -m threat_model \
+		--mitre-path office_suite_description_mitre_dump.csv \
+		--idp-path idp_description_mitre_dump.csv \
+		--audit-path audit_operations.csv \
+		--output threat_model.md \
+		--batch \
+		--sections "Authentication" "Data Access"
 
 # Generate coverage report
 coverage: test
@@ -105,21 +131,33 @@ dist: clean install
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  all            : Clean, install, test, and lint"
-	@echo "  clean          : Remove build artifacts and caches"
-	@echo "  install        : Install dependencies in virtual environment"
-	@echo "  test           : Run tests with coverage"
-	@echo "  lint           : Run linting checks"
-	@echo "  format         : Format code with black"
-	@echo "  docker-build   : Build Docker image"
-	@echo "  docker-run     : Run Docker container"
-	@echo "  dev-setup     : Setup development environment"
-	@echo "  run           : Run the application"
-	@echo "  run-batch     : Run batch processing"
-	@echo "  coverage      : Generate coverage report"
-	@echo "  security-check: Run security checks"
-	@echo "  type-check    : Run type checking"
-	@echo "  dist          : Build distribution packages"
+	@echo ""
+	@echo "Development workflow:"
+	@echo "  dev           : Format, lint, and test code"
+	@echo "  dev-setup    : Setup development environment"
+	@echo "  format       : Format code with black"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test         : Run tests with parallel execution and full reporting"
+	@echo "  test-fast    : Run tests in parallel without coverage (quick feedback)"
+	@echo "  coverage     : Generate detailed coverage reports"
+	@echo ""
+	@echo "Code quality:"
+	@echo "  lint         : Run linting and type checking with detailed reports"
+	@echo "  type-check   : Run MyPy type checking"
+	@echo "  security-check: Run security audits (bandit & safety)"
+	@echo ""
+	@echo "Application:"
+	@echo "  run          : Run the application with default settings"
+	@echo "  run-batch    : Run batch processing with sections"
+	@echo ""
+	@echo "Build & Deploy:"
+	@echo "  all          : Clean, install, test, and lint"
+	@echo "  clean        : Remove build artifacts and caches"
+	@echo "  install      : Install dependencies in virtual environment"
+	@echo "  docker-build : Build Docker image"
+	@echo "  docker-run   : Run Docker container"
+	@echo "  dist         : Build distribution packages"
 
 # CI targets
 ci-test: install test lint type-check security-check

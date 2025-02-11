@@ -104,15 +104,25 @@
 
 ### Command Line Interface
 
-1. Basic threat model generation:
+1. Basic threat model generation (recommended starting point):
    ```bash
-   python -m threat_model
+   python -m threat_model \
+     --mitre-path office_suite_description_mitre_dump.csv \
+     --idp-path idp_description_mitre_dump.csv \
+     --audit-path audit_operations.csv \
+     --output threat_model.md \
+     --batch
 
-   # Or using Make
+   # Or simply use Make (uses same defaults)
    make run
    ```
 
-2. Specify custom paths:
+   Note: The tool comes with default CSV files pre-configured:
+   - office_suite_description_mitre_dump.csv (MITRE techniques)
+   - idp_description_mitre_dump.csv (IDP techniques)
+   - audit_operations.csv (Audit operations)
+
+2. Specify custom paths (if needed):
    ```bash
    python -m threat_model \
      --mitre-path path/to/mitre.csv \
