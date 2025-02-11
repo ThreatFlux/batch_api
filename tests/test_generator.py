@@ -1,29 +1,30 @@
 """Unit tests for the threat model generator module."""
-import os
 from pathlib import Path
 import json
+from typing import Dict, Any, Generator
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import yaml
 from anthropic import Anthropic
 from anthropic.types.messages.batch_create_params import Request
+from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 
 from threat_model.core.generator import ThreatModelGenerator
 from threat_model.core.config import DEFAULT_MODEL, MAX_TOKENS
 
 @pytest.fixture
-def mock_anthropic():
+def mock_anthropic() -> Generator[Mock, None, None]:
     """Create a mock Anthropic client."""
     with patch('anthropic.Anthropic') as mock:
         yield mock
 
 @pytest.fixture
-def generator(mock_anthropic):
+def generator(mock_anthropic: Mock) -> ThreatModelGenerator:
     """Create a ThreatModelGenerator instance for testing."""
     return ThreatModelGenerator(api_key="test-key")
 
 @pytest.fixture
-def sample_data_dir(tmp_path):
+def sample_data_dir(tmp_path: Path) -> Dict[str, Path]:
     """Create sample data files for testing."""
     # Create MITRE data
     mitre_data = """TID,Tactic,Technique,Description
@@ -48,9 +49,12 @@ Account Access,UserLoggedIn,User successfully logged in"""
 
     # Create templates
     templates = {
-        'section_template': '# {section_title}\n{content}',
-        'threat_model_template': '# {title}\n{overview}\n{sections}',
-        'technique_model_template': '# Technique: {technique_name}\n{description}'
+        'system_prompt': 'System prompt content',
+        'technique_model_template': 'Technique model template',
+        'section_template': 'Section template',
+        'correlation_prompt': 'Correlation prompt',
+        'group_prompt': 'Group prompt',
+        'validation_prompt': 'Validation prompt'
     }
     template_dir = tmp_path / 'templates'
     template_dir.mkdir()
@@ -65,18 +69,22 @@ Account Access,UserLoggedIn,User successfully logged in"""
         'template_path': template_path
     }
 
-def test_init(generator):
+def test_init(generator: ThreatModelGenerator) -> None:
     """Test generator initialization."""
     assert generator.client is not None
     assert generator.data_processor is not None
     assert isinstance(generator.templates, dict)
 
-def test_load_templates(generator, tmp_path):
+def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None:
     """Test template loading."""
-    # Create test templates
+    # Create test templates with expected structure
     templates = {
-        'test_template': 'Test content: {variable}',
-        'another_template': 'Another test: {data}'
+        'system_prompt': 'System prompt content',
+        'technique_model_template': 'Technique model template',
+        'section_template': 'Section template',
+        'correlation_prompt': 'Correlation prompt',
+        'group_prompt': 'Group prompt',
+        'validation_prompt': 'Validation prompt'
     }
     template_path = tmp_path / 'templates.yaml'
     with open(template_path, 'w') as f:
@@ -85,9 +93,12 @@ def test_load_templates(generator, tmp_path):
     # Mock PROMPTS_DIR
     with patch('threat_model.core.config.PROMPTS_DIR', tmp_path):
         loaded_templates = generator._load_templates()
-        assert loaded_templates == templates
+        # Verify all expected templates are present
+        assert set(loaded_templates.keys()) == set(templates.keys())
+        # Verify each template is a string
+        assert all(isinstance(v, str) for v in loaded_templates.values())
 
-def test_load_data(generator, sample_data_dir):
+def test_load_data(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
     """Test data loading."""
     generator.load_data(
         sample_data_dir['mitre_path'],
@@ -99,7 +110,7 @@ def test_load_data(generator, sample_data_dir):
     assert not generator.data_processor.audit_data.empty
 
 @patch('threat_model.core.generator.jinja2.Template')
-def test_create_section(mock_template, generator, sample_data_dir):
+def test_create_section(mock_template: Mock, generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
     """Test section creation."""
     # Load test data
     generator.load_data(
@@ -108,14 +119,53 @@ def test_create_section(mock_template, generator, sample_data_dir):
         sample_data_dir['audit_path']
     )
 
-    # Mock template rendering
-    mock_template.return_value.render.return_value = "Rendered content"
+    # Set up expected template data
+    expected_content = "Rendered content"
+    mock_template_instance = Mock()
+    mock_template_instance.render.return_value = expected_content
+    mock_template.return_value = mock_template_instance
 
-    # Create section
+    # Create section with technique ID
     section = generator._create_section(['T1110'])
-    assert section == "Rendered content"
+    
+    # Verify template was called with correct context
+    mock_template_instance.render.assert_called_once()
+    template_context = mock_template_instance.render.call_args[1]
+    
+    # Verify required fields are present and have correct types
+    assert isinstance(template_context['section_title'], str)
+    assert template_context['section_title'].startswith("Attack Vector Group:")
+    
+    assert isinstance(template_context['risk_level'], str)
+    assert template_context['risk_level'] in ['Critical', 'High', 'Medium', 'Low']
+    
+    assert isinstance(template_context['impact'], str)
+    assert template_context['impact'] in ['High', 'Medium']
+    
+    assert isinstance(template_context['likelihood'], str)
+    assert template_context['likelihood'] in ['High', 'Medium', 'Low']
+    
+    assert isinstance(template_context['techniques'], list)
+    assert len(template_context['techniques']) > 0
+    technique = template_context['techniques'][0]
+    assert all(key in technique for key in ['id', 'name', 'description', 'operations'])
+    assert technique['id'] == 'T1110'
+    
+    assert isinstance(template_context['operations'], list)
+    assert all(isinstance(op, dict) for op in template_context['operations'])
+    if template_context['operations']:
+        assert all(key in template_context['operations'][0] for key in ['operation', 'score', 'techniques'])
+    
+    assert isinstance(template_context['detection_strategy'], dict)
+    assert all(key in template_context['detection_strategy'] for key in ['audit_events', 'correlation_rules', 'behavioral_analytics'])
+    
+    assert isinstance(template_context['controls'], dict)
+    assert all(key in template_context['controls'] for key in ['preventive', 'detective'])
+    
+    # Verify result
+    assert section == expected_content
 
-def test_calculate_risk_level(generator):
+def test_calculate_risk_level(generator: ThreatModelGenerator) -> None:
     """Test risk level calculation."""
     techniques = [
         {
@@ -127,7 +177,7 @@ def test_calculate_risk_level(generator):
     assert isinstance(risk_level, str)
     assert risk_level in ['Critical', 'High', 'Medium', 'Low']
 
-def test_calculate_impact(generator):
+def test_calculate_impact(generator: ThreatModelGenerator) -> None:
     """Test impact calculation."""
     techniques = [
         {
@@ -139,7 +189,7 @@ def test_calculate_impact(generator):
     assert isinstance(impact, str)
     assert impact in ['High', 'Medium']
 
-def test_calculate_likelihood(generator):
+def test_calculate_likelihood(generator: ThreatModelGenerator) -> None:
     """Test likelihood calculation."""
     techniques = [
         {
@@ -151,7 +201,7 @@ def test_calculate_likelihood(generator):
     assert isinstance(likelihood, str)
     assert likelihood in ['High', 'Medium', 'Low']
 
-def test_get_combined_operations(generator):
+def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
     """Test operation combination."""
     techniques = [
         {
@@ -171,16 +221,44 @@ def test_get_combined_operations(generator):
     assert all('techniques' in op for op in combined)
 
 @patch('anthropic.Anthropic')
-def test_create_batch_request(mock_anthropic, generator):
+def test_create_batch_request(mock_anthropic: Mock, generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
     """Test batch request creation."""
+    # Load test data first
+    generator.load_data(
+        sample_data_dir['mitre_path'],
+        sample_data_dir['idp_path'],
+        sample_data_dir['audit_path']
+    )
+    
+    # Create batch request with technique ID
     request = generator._create_batch_request('T1110', 'test-id')
-    assert isinstance(request, Request)
-    assert request.custom_id == 'test-id'
-    assert request.params.model == DEFAULT_MODEL
-    assert request.params.max_tokens == MAX_TOKENS
+    
+    # Verify request structure
+    assert isinstance(request, dict)
+    assert 'custom_id' in request
+    assert request['custom_id'] == 'test-id'
+    assert 'params' in request
+    
+    params = request['params']
+    assert params['model'] == DEFAULT_MODEL
+    assert params['max_tokens'] == MAX_TOKENS
+    
+    # Verify system prompt
+    assert 'system' in params
+    assert isinstance(params['system'], str)
+    assert "You are a cybersecurity expert" in params['system']
+    assert "MITRE Techniques" in params['system']
+    assert "Key Requirements" in params['system']
+    
+    # Verify user message
+    assert 'messages' in params
+    assert len(params['messages']) == 1
+    assert params['messages'][0]['role'] == 'user'
+    assert isinstance(params['messages'][0]['content'], str)
 
 @patch('threat_model.core.generator.time.sleep')
-def test_generate_threat_model_batch(mock_sleep, generator, sample_data_dir, tmp_path):
+def test_generate_threat_model_batch(mock_sleep: Mock, generator: ThreatModelGenerator, 
+                                   sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
     """Test batch threat model generation."""
     # Load test data
     generator.load_data(
@@ -189,28 +267,48 @@ def test_generate_threat_model_batch(mock_sleep, generator, sample_data_dir, tmp
         sample_data_dir['audit_path']
     )
 
-    # Mock batch processing
+    # Mock batch creation
     mock_batch = MagicMock()
     mock_batch.id = 'test-batch'
     mock_batch.processing_status = 'ended'
     generator.client.messages.batches.create.return_value = mock_batch
     
+    # Mock batch status retrieval
+    mock_status = MagicMock()
+    mock_status.processing_status = 'ended'
+    generator.client.messages.batches.retrieve.return_value = mock_status
+    
     # Mock batch results
+    mock_content = MagicMock()
+    mock_content.type = 'text'
+    mock_content.text = '# Threat Model: Test Technique (T1110)'
+    
+    mock_message = MagicMock()
+    mock_message.content = [mock_content]
+    
     mock_result = MagicMock()
     mock_result.result.type = 'succeeded'
-    mock_result.result.message.content = [MagicMock(type='text', text='Test content')]
+    mock_result.result.message = mock_message
     mock_result.custom_id = 'technique_0'
+    
     generator.client.messages.batches.results.return_value = [mock_result]
 
     # Generate batch threat model
     output_file = tmp_path / 'output.md'
     generator.generate_threat_model_batch(['Section 1'], output_file)
     
+    # Verify batch processing
+    generator.client.messages.batches.create.assert_called_once()
+    generator.client.messages.batches.retrieve.assert_called()
+    generator.client.messages.batches.results.assert_called_once()
+    
+    # Verify output file
     assert output_file.exists()
     content = output_file.read_text()
     assert 'Microsoft 365 & Entra ID Threat Models' in content
+    assert '# Threat Model: Test Technique (T1110)' in content
 
-def test_generate_threat_model(generator, sample_data_dir, tmp_path):
+def test_generate_threat_model(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
     """Test threat model generation."""
     # Load test data
     generator.load_data(
@@ -219,13 +317,36 @@ def test_generate_threat_model(generator, sample_data_dir, tmp_path):
         sample_data_dir['audit_path']
     )
 
-    # Mock output directory
-    with patch('threat_model.core.config.OUTPUT_DIR', tmp_path):
-        content = generator.generate_threat_model()
-        assert isinstance(content, str)
-        assert (tmp_path / 'threat_model.md').exists()
+    # Set up test output directory
+    output_file = tmp_path / 'threat_model.md'
+    
+    # Mock get_technique_groups to return test data
+    with patch.object(generator.data_processor, 'get_technique_groups') as mock_get_groups:
+        mock_get_groups.return_value = [['T1110']]  # Return a list with one group containing one technique
+        
+        # Mock section template and jinja2.Template
+        with patch('threat_model.core.generator.jinja2.Template') as mock_template:
+            mock_template_instance = Mock()
+            mock_template_instance.render.return_value = "Rendered section content"
+            mock_template.return_value = mock_template_instance
+            
+            # Generate threat model with custom output directory
+            content = generator.generate_threat_model(output_dir=tmp_path)
+            
+            # Verify content structure
+            assert isinstance(content, str)
+            assert "Microsoft 365 and Entra ID Threat Model" in content
+            assert "Rendered section content" in content
+            
+            # Verify file creation
+            assert output_file.exists(), f"Output file was not created at {output_file}"
+            assert output_file.is_file(), f"Output path exists but is not a file: {output_file}"
+            
+            # Verify file content
+            file_content = output_file.read_text()
+            assert file_content == content, "File content does not match generated content"
 
-def test_create_detection_strategy(generator):
+def test_create_detection_strategy(generator: ThreatModelGenerator) -> None:
     """Test detection strategy creation."""
     techniques = [
         {
@@ -240,7 +361,7 @@ def test_create_detection_strategy(generator):
     assert 'correlation_rules' in strategy
     assert 'behavioral_analytics' in strategy
 
-def test_create_controls(generator):
+def test_create_controls(generator: ThreatModelGenerator) -> None:
     """Test security controls creation."""
     techniques = [
         {

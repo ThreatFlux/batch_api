@@ -11,7 +11,7 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 # Model settings
 DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
 MAX_TOKENS = 8192
-BATCH_SIZE = 5  # Increased batch size for more efficient processing
+BATCH_SIZE = 100  # Increased batch size for more efficient processing
 
 # Data processing settings
 CSV_SETTINGS: Dict[str, Any] = {

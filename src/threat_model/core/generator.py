@@ -3,7 +3,7 @@ import logging
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 import yaml
 import anthropic
 import jinja2
@@ -43,7 +43,9 @@ class ThreatModelGenerator:
         template_path = PROMPTS_DIR / "templates.yaml"
         try:
             with open(template_path) as f:
-                return yaml.safe_load(f)
+                templates = yaml.safe_load(f)
+                # Ensure all values are strings
+                return {k: str(v) for k, v in templates.items()}
         except Exception as e:
             logger.error(f"Error loading templates: {str(e)}")
             raise
@@ -172,7 +174,7 @@ class ThreatModelGenerator:
         Returns:
             List of operation data
         """
-        operations = {}
+        operations: Dict[str, Dict[str, Any]] = {}
         for technique in techniques:
             for op, score in technique['operations']:
                 if op not in operations or score > operations[op]['score']:
@@ -203,7 +205,7 @@ class ThreatModelGenerator:
                 {
                     'name': f"Detect {t['name']}",
                     'description': f"Identify potential {t['name']} activity",
-                    'operations': [op['operation'] for op in t['operations']],
+                    'operations': [op[0] for op in t['operations']],
                     'threshold': 'medium',
                     'window': '1h'
                 }
@@ -329,7 +331,7 @@ Focus on Microsoft 365 and Entra ID specific implementations and detections.
 Include realistic audit log examples that show actual field names and values.
 Provide concrete detection rules with specific thresholds and conditions."""
 
-    def _create_batch_request(self, section_data: str, custom_id: str) -> Request:
+    def _create_batch_request(self, section_data: str, custom_id: str) -> Dict[str, Any]:
         """Create a single batch request with proper system messages.
         
         Args:
@@ -347,54 +349,43 @@ Provide concrete detection rules with specific thresholds and conditions."""
                 'Description': row.get('Description', '')
             }
 
-        system_content = [
-            {
-                "type": "text",
-                "text": """You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.
-Your task is to create detailed threat models that:
-1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors
-2. Provide concrete detection strategies using actual audit operations
-3. Include example audit logs showing what malicious activity looks like
-4. Define behavioral analytics and baseline deviation monitoring
-5. Specify technical, administrative, and monitoring controls
+        system_prompt = (
+            "You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.\n"
+            "Your task is to create detailed threat models that:\n"
+            "1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors\n"
+            "2. Provide concrete detection strategies using actual audit operations\n"
+            "3. Include example audit logs showing what malicious activity looks like\n"
+            "4. Define behavioral analytics and baseline deviation monitoring\n"
+            "5. Specify technical, administrative, and monitoring controls\n\n"
+            "For each technique:\n"
+            "- Use the MITRE data to understand the attack methodology\n"
+            "- Map relevant audit operations that could detect this activity\n"
+            "- Create example logs showing suspicious patterns\n"
+            "- Define specific detection rules and thresholds\n"
+            "- Provide actionable mitigation strategies\n\n"
+            "Reference Data for Correlation:\n"
+            f"MITRE Techniques:\n{json.dumps(self.data_processor.mitre_data.to_dict(), indent=2)}\n\n"
+            f"IDP Mappings:\n{json.dumps(self.data_processor.idp_data.to_dict(), indent=2)}\n\n"
+            f"Available Audit Operations:\n{json.dumps(formatted_audit_ops, indent=2)}\n\n"
+            "Key Requirements:\n"
+            "1. Every attack vector must include specific audit operations for detection\n"
+            "2. Example logs must show realistic field names and values\n"
+            "3. Detection strategies must include concrete thresholds and time windows\n"
+            "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
+        )
 
-For each technique:
-- Use the MITRE data to understand the attack methodology
-- Map relevant audit operations that could detect this activity
-- Create example logs showing suspicious patterns
-- Define specific detection rules and thresholds
-- Provide actionable mitigation strategies"""
-            },
-            {
-                "type": "text",
-                "text": "Reference Data for Correlation:\n" +
-                       f"MITRE Techniques:\n{json.dumps(self.data_processor.mitre_data.to_dict(), indent=2)}\n\n" +
-                       f"IDP Mappings:\n{json.dumps(self.data_processor.idp_data.to_dict(), indent=2)}\n\n" +
-                       f"Available Audit Operations:\n{json.dumps(formatted_audit_ops, indent=2)}",
-                "cache_control": {"type": "ephemeral"}
-            },
-            {
-                "type": "text",
-                "text": """Key Requirements:
-1. Every attack vector must include specific audit operations for detection
-2. Example logs must show realistic field names and values
-3. Detection strategies must include concrete thresholds and time windows
-4. Controls must be specific to Microsoft 365 and Entra ID capabilities"""
-            }
-        ]
-
-        return Request(
-            custom_id=custom_id,
-            params=MessageCreateParamsNonStreaming(
-                model=DEFAULT_MODEL,
-                max_tokens=MAX_TOKENS,
-                system=system_content,
-                messages=[{
+        return {
+            'custom_id': custom_id,
+            'params': {
+                'model': DEFAULT_MODEL,
+                'max_tokens': MAX_TOKENS,
+                'system': system_prompt,
+                'messages': [{
                     "role": "user",
                     "content": self._create_technique_prompt(section_data, formatted_audit_ops)
                 }]
-            )
-        )
+            }
+        }
 
     def generate_threat_model_batch(self, sections: List[str], output_file: str) -> None:
         """Generate threat model using batch processing.
@@ -445,8 +436,22 @@ For each technique:
                 
                 # Process current batch
                 try:
+                    # Convert dictionary requests to Request objects
+                    request_objects = []
+                    for req in requests:
+                        params = MessageCreateParamsNonStreaming(
+                            model=req['params']['model'],
+                            max_tokens=req['params']['max_tokens'],
+                            system=req['params']['system'],
+                            messages=req['params']['messages']
+                        )
+                        request_objects.append(Request(
+                            custom_id=req['custom_id'],
+                            params=params
+                        ))
+                    
                     # Submit batch request
-                    message_batch = self.client.messages.batches.create(requests=requests)
+                    message_batch = self.client.messages.batches.create(requests=request_objects)
                     logger.info(f"Batch submitted successfully. Batch ID: {message_batch.id}")
                     
                     # Wait for completion
@@ -520,34 +525,54 @@ For each technique:
             logger.error(f"Error generating threat model: {str(e)}")
             raise
 
-    def generate_threat_model(self) -> str:
-        """Generate complete threat model document.
+    def generate_threat_model(self, output_dir: Optional[Path] = None) -> str:
+        """Generate complete threat model document and save it to file.
+        
+        Args:
+            output_dir: Optional custom output directory. If not provided, uses OUTPUT_DIR from config.
         
         Returns:
-            Markdown formatted threat model
+            Markdown formatted threat model content
+            
+        Raises:
+            IOError: If there's an error writing the output file
         """
-        # Get technique groups
-        groups = self.data_processor.get_technique_groups()
-        
-        # Generate content for each group
-        sections = []
-        for group in groups:
-            section = self._create_section(group)
-            sections.append(section)
+        try:
+            # Get technique groups
+            groups = self.data_processor.get_technique_groups()
             
-        # Combine sections with main template
-        template = jinja2.Template(self.templates['threat_model_template'])
-        content = template.render(
-            title="Microsoft 365 and Entra ID Threat Model",
-            overview="Comprehensive threat model analyzing attack vectors, detection strategies, and controls",
-            sections=sections
-        )
-        
-        # Save output
-        output_path = OUTPUT_DIR / "threat_model.md"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
-            f.write(content)
+            # Generate content for each group
+            sections = []
+            for group in groups:
+                section = self._create_section(group)
+                sections.append(section)
+                
+            # Combine sections with main template
+            content = "# Microsoft 365 and Entra ID Threat Model\n\n"
+            content += "Comprehensive threat model analyzing attack vectors, detection strategies, and controls\n\n"
+            content += "\n\n".join(sections)
             
-        logger.info(f"Threat model generated and saved to {output_path}")
-        return content
+            # Determine output path
+            output_path = (output_dir if output_dir is not None else OUTPUT_DIR) / "threat_model.md"
+            
+            # Ensure directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write content to file
+            logger.info(f"Writing threat model to {output_path}")
+            try:
+                output_path.write_text(content)
+                # Verify file was created
+                if not output_path.exists():
+                    raise IOError(f"Failed to create output file at {output_path}")
+                logger.info(f"Successfully wrote threat model to {output_path}")
+            except Exception as e:
+                logger.error(f"Error writing threat model to {output_path}: {str(e)}")
+                raise IOError(f"Failed to write output file at {output_path}: {str(e)}")
+                
+            logger.info(f"Threat model successfully generated and saved to {output_path}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"Error generating threat model: {str(e)}")
+            raise
