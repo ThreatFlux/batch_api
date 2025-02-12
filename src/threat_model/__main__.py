@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Generate threat models for Microsoft 365 and Entra ID")
-    
     parser.add_argument(
         "--mitre-path",
         type=str,
@@ -57,7 +56,6 @@ def parse_args():
             "Application Security"
         ]
     )
-    
     return parser.parse_args()
 
 def main():
@@ -65,30 +63,25 @@ def main():
     try:
         # Parse arguments
         args = parse_args()
-        
         # Load environment variables
         load_dotenv()
         api_key = os.getenv('ANTHROPIC_API_KEY')
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-            
         # Initialize generator
         generator = ThreatModelGenerator(api_key=api_key)
-        
         # Convert paths to Path objects
         current_dir = Path(__file__).parent.parent.parent
         mitre_path = current_dir / args.mitre_path
         idp_path = current_dir / args.idp_path
         audit_path = current_dir / args.audit_path
         output_path = current_dir / args.output
-        
         # Load data
         generator.load_data(
             mitre_path=mitre_path,
             idp_path=idp_path,
             audit_path=audit_path
         )
-        
         # Generate threat model
         if args.batch:
             # Format sections for batch processing
@@ -96,11 +89,20 @@ def main():
             generator.generate_threat_model_batch(sections, output_path)
             logger.info("Batch threat model generation completed successfully")
         else:
-            threat_model = generator.generate_threat_model()
+            generator.generate_threat_model()
             logger.info("Threat model generation completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Error generating threat model: {str(e)}")
+    # Handle exceptions
+    except FileNotFoundError as e:
+        logger.error("File not found: %s", e)
+        raise
+    except ValueError as e:
+        logger.error("Value error: %s", e)
+        raise
+    except PermissionError as e:
+        logger.error("Permission error: %s", e)
+        raise
+    except Exception as e: # disable=E1101
+        logger.error("Unexpected error: %s", e)
         raise
 
 if __name__ == "__main__":

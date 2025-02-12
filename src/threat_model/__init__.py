@@ -2,9 +2,6 @@
 import logging
 from pathlib import Path
 
-# Configure package logging
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-
 # Import core components
 from .core import (
     DataProcessor,
@@ -18,9 +15,13 @@ from .core import (
     CORRELATION_WEIGHTS
 )
 
+# Configure package logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+
 # Package metadata
-__version__ = "0.1.0"
-__author__ = "Security Team"
+__version__ = "0.2.0"
+__author__ = "Wyatt Roersma"
 
 # Define package root directory
 PACKAGE_ROOT = Path(__file__).parent
