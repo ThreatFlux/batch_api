@@ -27,7 +27,12 @@ class ThreatModelGenerator:
         
         Args:
             api_key: Anthropic API key
+            
+        Raises:
+            ValueError: If API key is empty
         """
+        if not api_key:
+            raise ValueError("API key cannot be empty")
         self.client = anthropic.Anthropic(api_key=api_key)
         self.data_processor = DataProcessor()
         self.templates = self._load_templates()
@@ -39,13 +44,17 @@ class ThreatModelGenerator:
             Dictionary of template names to template content
         """
         template_path = PROMPTS_DIR / "templates.yaml"
+        if not template_path.exists():
+            raise FileNotFoundError(f"Templates file not found at {template_path}")
         try:
             with open(template_path) as f:
                 templates = yaml.safe_load(f)
                 # Ensure all values are strings
                 return {k: str(v) for k, v in templates.items()}
-        except Exception as e:
-            logger.error(f"Error loading templates: {str(e)}")
+        except FileNotFoundError:
+            raise
+        except Exception as e: # disable=bare-except # noqa: E722
+            logger.error("Error loading templates: %s", str(e))
             raise
     def load_data(self, mitre_path: Path, idp_path: Path, audit_path: Path) -> None:
         """Load and process input data.
@@ -272,6 +281,7 @@ class ThreatModelGenerator:
             self.batch_processor.generate_threat_models(output_file)
         except ValueError as ve:
             logger.error("Value error: %s", str(ve))
+            raise
         except FileNotFoundError as fe:
             logger.error("File not found: %s", str(fe))
             raise

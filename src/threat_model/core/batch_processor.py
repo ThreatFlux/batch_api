@@ -19,6 +19,8 @@ from .config import (
 
 logger = logging.getLogger(__name__)
 
+# Sleep time for rate limit retries (in seconds)
+SLEEP_TIME = 1  # Reduced for testing
 
 class BatchProcessor:
     """Handles batch processing of threat model generation requests."""
@@ -74,8 +76,8 @@ class BatchProcessor:
         Returns:
             Dict[str, str]: Dictionary mapping technique IDs to generated content
         """
-        requests = []
-        batch_content = {}
+        requests: List[Dict[str, Any]] = []
+        batch_content: Dict[str, str] = {}
         # Create batch requests
         for i, technique_id in enumerate(technique_ids):
             try:
@@ -103,7 +105,12 @@ class BatchProcessor:
             request_objects = [
                 Request(
                     custom_id=req['custom_id'],
-                    params=MessageCreateParamsNonStreaming(**req['params'])
+                    params=MessageCreateParamsNonStreaming(
+                        model=req['params']['model'],
+                        max_tokens=req['params']['max_tokens'],
+                        messages=req['params']['messages'],
+                        system=req['params']['system']
+                    )
                 )
                 for req in requests
             ]
@@ -116,8 +123,8 @@ class BatchProcessor:
             batch_content = self._process_batch_results(message_batch.id)
         # Handle rate limits and other exceptions
         except RateLimitError as e:
-            logger.error("Rate limit exceeded. Retrying in 60 seconds. %s", str(e))
-            time.sleep(60)
+            logger.error("Rate limit exceeded. Retrying in %d seconds. %s", SLEEP_TIME, str(e))
+            time.sleep(SLEEP_TIME)
         except Exception as e: # disable=W0718
             logger.error("Error processing batch: %s", str(e))
         # Handle empty batch
@@ -171,14 +178,14 @@ class BatchProcessor:
                     break
                 logger.info("Batch %s still processing. Status: %s",
                             batch_id, batch_status.processing_status)
-                time.sleep(60)
+                time.sleep(SLEEP_TIME)
             except RateLimitError as e:
-                logger.error("Rate limit exceeded while checking batch status. Retrying in 60 seconds. %s",
-                             str(e))
-                time.sleep(60)
+                logger.error("Rate limit exceeded while checking batch status. Retrying in %d seconds. %s",
+                             SLEEP_TIME, str(e))
+                time.sleep(SLEEP_TIME)
             except Exception as e: # disable=W0718
-                logger.error("Error chekcing batch status: %s", str(e))
-                time.sleep(60)
+                logger.error("Error checking batch status: %s", str(e))
+                time.sleep(SLEEP_TIME)
     def _process_batch_results(self, batch_id: str) -> Dict[str, str]:
         """Process results from a completed batch.
 

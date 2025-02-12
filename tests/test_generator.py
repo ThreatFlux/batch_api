@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from typing import Dict, Any, Generator
+import pandas as pd
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import yaml
@@ -74,6 +75,31 @@ def test_init(generator: ThreatModelGenerator) -> None:
     assert generator.data_processor is not None
     assert isinstance(generator.templates, dict)
 
+def test_init_error_handling() -> None:
+    """Test error handling during initialization."""
+    with pytest.raises(ValueError, match="API key cannot be empty"):
+        ThreatModelGenerator(api_key="")
+
+def test_load_templates_error(mock_anthropic: Mock, tmp_path: Path) -> None:
+    """Test template loading error handling."""
+    # Create empty directory to ensure no templates.yaml exists
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    
+    # Mock the template path resolution
+    mock_path = MagicMock()
+    mock_path.configure_mock(**{
+        'exists.return_value': False,
+        '__str__.return_value': str(empty_dir / "templates.yaml")
+    })
+    
+    # Mock both the PROMPTS_DIR and the Path operations
+    with patch('threat_model.core.config.PROMPTS_DIR', empty_dir):
+        with patch.object(Path, '__truediv__', return_value=mock_path):
+            with patch.object(mock_path, 'exists', return_value=False):
+                with pytest.raises(FileNotFoundError, match="Templates file not found"):
+                    ThreatModelGenerator(api_key="test-key")
+
 def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None:
     """Test template loading."""
     # Create test templates with expected structure
@@ -107,6 +133,15 @@ def test_load_data(generator: ThreatModelGenerator, sample_data_dir: Dict[str, P
     assert not generator.data_processor.mitre_data.empty
     assert not generator.data_processor.idp_data.empty
     assert not generator.data_processor.audit_data.empty
+
+def test_load_data_error(generator: ThreatModelGenerator, tmp_path: Path) -> None:
+    """Test data loading error handling."""
+    with pytest.raises(FileNotFoundError):
+        generator.load_data(
+            tmp_path / 'nonexistent.csv',
+            tmp_path / 'nonexistent.csv',
+            tmp_path / 'nonexistent.csv'
+        )
 
 @patch('threat_model.core.generator.jinja2.Template')
 def test_create_section(mock_template: Mock, generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
@@ -166,39 +201,45 @@ def test_create_section(mock_template: Mock, generator: ThreatModelGenerator, sa
 
 def test_calculate_risk_level(generator: ThreatModelGenerator) -> None:
     """Test risk level calculation."""
-    techniques = [
-        {
-            'id': 'T1110',
-            'operations': [('op1', 0.5), ('op2', 0.7)]
-        }
-    ]
-    risk_level = generator._calculate_risk_level(techniques)
-    assert isinstance(risk_level, str)
-    assert risk_level in ['Critical', 'High', 'Medium', 'Low']
+    # Test Critical risk level
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 16}]
+    assert generator._calculate_risk_level(techniques) == "Critical"
+    
+    # Test High risk level
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 11}]
+    assert generator._calculate_risk_level(techniques) == "High"
+    
+    # Test Medium risk level
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 6}]
+    assert generator._calculate_risk_level(techniques) == "Medium"
+    
+    # Test Low risk level
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 2}]
+    assert generator._calculate_risk_level(techniques) == "Low"
 
 def test_calculate_impact(generator: ThreatModelGenerator) -> None:
     """Test impact calculation."""
-    techniques = [
-        {
-            'id': 'T1110',
-            'description': 'Test with credentials and sensitive data'
-        }
-    ]
-    impact = generator._calculate_impact(techniques)
-    assert isinstance(impact, str)
-    assert impact in ['High', 'Medium']
+    # Test High impact
+    techniques = [{'id': 'T1110', 'description': 'Test with credentials and sensitive data'}]
+    assert generator._calculate_impact(techniques) == "High"
+    
+    # Test Medium impact
+    techniques = [{'id': 'T1110', 'description': 'Test without high-impact keywords'}]
+    assert generator._calculate_impact(techniques) == "Medium"
 
 def test_calculate_likelihood(generator: ThreatModelGenerator) -> None:
     """Test likelihood calculation."""
-    techniques = [
-        {
-            'id': 'T1110',
-            'operations': [('op1', 0.5)] * 15
-        }
-    ]
-    likelihood = generator._calculate_likelihood(techniques)
-    assert isinstance(likelihood, str)
-    assert likelihood in ['High', 'Medium', 'Low']
+    # Test High likelihood
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 21}]
+    assert generator._calculate_likelihood(techniques) == "High"
+    
+    # Test Medium likelihood
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 11}]
+    assert generator._calculate_likelihood(techniques) == "Medium"
+    
+    # Test Low likelihood
+    techniques = [{'id': 'T1110', 'operations': [('op1', 0.5)] * 5}]
+    assert generator._calculate_likelihood(techniques) == "Low"
 
 def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
     """Test operation combination."""
@@ -218,7 +259,9 @@ def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
     assert all('operation' in op for op in combined)
     assert all('score' in op for op in combined)
     assert all('techniques' in op for op in combined)
-
+    # Verify operations are sorted by score
+    scores = [op['score'] for op in combined]
+    assert scores == sorted(scores, reverse=True)
 
 def test_generate_threat_model(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
     """Test threat model generation."""
@@ -258,6 +301,66 @@ def test_generate_threat_model(generator: ThreatModelGenerator, sample_data_dir:
             file_content = output_file.read_text()
             assert file_content == content, "File content does not match generated content"
 
+def test_generate_threat_model_io_error(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
+    """Test threat model generation IO error handling."""
+    # Load test data
+    generator.load_data(
+        sample_data_dir['mitre_path'],
+        sample_data_dir['idp_path'],
+        sample_data_dir['audit_path']
+    )
+
+    # Mock write_text to raise IOError
+    with patch.object(Path, 'write_text', side_effect=IOError("Test IO error")):
+        with pytest.raises(IOError, match="Failed to write output file"):
+            generator.generate_threat_model(output_dir=tmp_path)
+
+def test_generate_threat_model_batch(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
+    """Test batch threat model generation."""
+    # Load test data
+    generator.load_data(
+        sample_data_dir['mitre_path'],
+        sample_data_dir['idp_path'],
+        sample_data_dir['audit_path']
+    )
+
+    # Mock batch processor
+    with patch.object(generator.batch_processor, 'generate_threat_models') as mock_generate:
+        generator.generate_threat_model_batch(['section1'], str(tmp_path / 'output.md'))
+        mock_generate.assert_called_once()
+
+def test_generate_threat_model_batch_error(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
+    """Test batch threat model generation error handling."""
+    # Load test data first
+    generator.load_data(
+        sample_data_dir['mitre_path'],
+        sample_data_dir['idp_path'],
+        sample_data_dir['audit_path']
+    )
+
+    # Test value error with empty data first
+    generator.data_processor.mitre_data = pd.DataFrame(columns=['TID', 'Tactic', 'Technique', 'Description'])
+    with pytest.raises(ValueError, match="No MITRE techniques found in data"):
+        generator.generate_threat_model_batch(['section1'], 'output.md')
+
+    # Restore test data
+    generator.load_data(
+        sample_data_dir['mitre_path'],
+        sample_data_dir['idp_path'],
+        sample_data_dir['audit_path']
+    )
+
+    # Mock the batch processor's wait_for_batch_completion to avoid timeouts
+    with patch.object(generator.batch_processor, '_wait_for_batch_completion'):
+        # Test file not found error
+        with pytest.raises(FileNotFoundError):
+            generator.generate_threat_model_batch(['section1'], 'nonexistent/path/output.md')
+
+        # Test IO error
+        with patch.object(generator.batch_processor, 'generate_threat_models', side_effect=IOError("Test IO error")):
+            with pytest.raises(IOError):
+                generator.generate_threat_model_batch(['section1'], 'output.md')
+
 def test_create_detection_strategy(generator: ThreatModelGenerator) -> None:
     """Test detection strategy creation."""
     techniques = [
@@ -272,6 +375,10 @@ def test_create_detection_strategy(generator: ThreatModelGenerator) -> None:
     assert 'audit_events' in strategy
     assert 'correlation_rules' in strategy
     assert 'behavioral_analytics' in strategy
+    # Verify correlation rules structure
+    assert len(strategy['correlation_rules']) > 0
+    rule = strategy['correlation_rules'][0]
+    assert all(key in rule for key in ['name', 'description', 'operations', 'threshold', 'window'])
 
 def test_create_controls(generator: ThreatModelGenerator) -> None:
     """Test security controls creation."""
@@ -286,3 +393,7 @@ def test_create_controls(generator: ThreatModelGenerator) -> None:
     assert isinstance(controls, dict)
     assert 'preventive' in controls
     assert 'detective' in controls
+    # Verify control structure
+    assert len(controls['preventive']) > 0
+    control = controls['preventive'][0]
+    assert all(key in control for key in ['name', 'description', 'implementation'])

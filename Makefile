@@ -52,13 +52,8 @@ clean:
 	find . -type f -name "test-results.xml" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 
-# Run tests with coverage reporting
-test: install
-	$(VENV)/bin/pytest tests/ -v \
-		--cov=src --cov-report=term-missing --cov-report=html
-
 # Run fast tests (no coverage) for quick feedback
-test-fast: install
+test: install
 	$(VENV)/bin/pytest tests/ -v
 
 # Run linting and type checking
