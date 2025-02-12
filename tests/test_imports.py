@@ -13,7 +13,6 @@ def test_imports():
         # Try importing the package
         import threat_model
         print("✓ Successfully imported threat_model package")
-        
         # Try importing core components
         from threat_model.core import (
             DataProcessor,
@@ -22,12 +21,10 @@ def test_imports():
             MAX_TOKENS
         )
         print("✓ Successfully imported core components")
-        
         # Try creating instances
         processor = DataProcessor()
         generator = ThreatModelGenerator(api_key="test")
         print("✓ Successfully created class instances")
-        
         return True
         
     except Exception as e:

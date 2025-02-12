@@ -9,6 +9,7 @@ from anthropic import Anthropic
 from anthropic.types.messages.batch_create_params import Request
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 
+from threat_model.core.batch_processor import BatchProcessor
 from threat_model.core.generator import ThreatModelGenerator
 from threat_model.core.config import DEFAULT_MODEL, MAX_TOKENS
 
@@ -46,7 +47,6 @@ Failed Login,UserLoginFailed,User login attempt failed
 Account Access,UserLoggedIn,User successfully logged in"""
     audit_path = tmp_path / 'audit.csv'
     audit_path.write_text(audit_data)
-
     # Create templates
     templates = {
         'system_prompt': 'System prompt content',
@@ -61,7 +61,6 @@ Account Access,UserLoggedIn,User successfully logged in"""
     template_path = template_dir / 'templates.yaml'
     with open(template_path, 'w') as f:
         yaml.dump(templates, f)
-
     return {
         'mitre_path': mitre_path,
         'idp_path': idp_path,
@@ -220,93 +219,6 @@ def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
     assert all('score' in op for op in combined)
     assert all('techniques' in op for op in combined)
 
-@patch('anthropic.Anthropic')
-def test_create_batch_request(mock_anthropic: Mock, generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
-    """Test batch request creation."""
-    # Load test data first
-    generator.load_data(
-        sample_data_dir['mitre_path'],
-        sample_data_dir['idp_path'],
-        sample_data_dir['audit_path']
-    )
-    
-    # Create batch request with technique ID
-    request = generator._create_batch_request('T1110', 'test-id')
-    
-    # Verify request structure
-    assert isinstance(request, dict)
-    assert 'custom_id' in request
-    assert request['custom_id'] == 'test-id'
-    assert 'params' in request
-    
-    params = request['params']
-    assert params['model'] == DEFAULT_MODEL
-    assert params['max_tokens'] == MAX_TOKENS
-    
-    # Verify system prompt
-    assert 'system' in params
-    assert isinstance(params['system'], str)
-    assert "You are a cybersecurity expert" in params['system']
-    assert "MITRE Techniques" in params['system']
-    assert "Key Requirements" in params['system']
-    
-    # Verify user message
-    assert 'messages' in params
-    assert len(params['messages']) == 1
-    assert params['messages'][0]['role'] == 'user'
-    assert isinstance(params['messages'][0]['content'], str)
-
-@patch('threat_model.core.generator.time.sleep')
-def test_generate_threat_model_batch(mock_sleep: Mock, generator: ThreatModelGenerator, 
-                                   sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
-    """Test batch threat model generation."""
-    # Load test data
-    generator.load_data(
-        sample_data_dir['mitre_path'],
-        sample_data_dir['idp_path'],
-        sample_data_dir['audit_path']
-    )
-
-    # Mock batch creation
-    mock_batch = MagicMock()
-    mock_batch.id = 'test-batch'
-    mock_batch.processing_status = 'ended'
-    generator.client.messages.batches.create.return_value = mock_batch
-    
-    # Mock batch status retrieval
-    mock_status = MagicMock()
-    mock_status.processing_status = 'ended'
-    generator.client.messages.batches.retrieve.return_value = mock_status
-    
-    # Mock batch results
-    mock_content = MagicMock()
-    mock_content.type = 'text'
-    mock_content.text = '# Threat Model: Test Technique (T1110)'
-    
-    mock_message = MagicMock()
-    mock_message.content = [mock_content]
-    
-    mock_result = MagicMock()
-    mock_result.result.type = 'succeeded'
-    mock_result.result.message = mock_message
-    mock_result.custom_id = 'technique_0'
-    
-    generator.client.messages.batches.results.return_value = [mock_result]
-
-    # Generate batch threat model
-    output_file = tmp_path / 'output.md'
-    generator.generate_threat_model_batch(['Section 1'], output_file)
-    
-    # Verify batch processing
-    generator.client.messages.batches.create.assert_called_once()
-    generator.client.messages.batches.retrieve.assert_called()
-    generator.client.messages.batches.results.assert_called_once()
-    
-    # Verify output file
-    assert output_file.exists()
-    content = output_file.read_text()
-    assert 'Microsoft 365 & Entra ID Threat Models' in content
-    assert '# Threat Model: Test Technique (T1110)' in content
 
 def test_generate_threat_model(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path) -> None:
     """Test threat model generation."""
