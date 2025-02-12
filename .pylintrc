@@ -1,0 +1,12 @@
+[MASTER]
+py-version = 3.13
+ignore = _version.py
+
+[FORMAT]
+max-line-length = 120
+
+[BASIC]
+good-names = i,j,k,ex,Run,_,fd,fp
+
+[REPORTS]
+output-format = colorized
