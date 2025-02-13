@@ -84,10 +84,23 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          dist/*
+          dist/*.tar.gz
+          dist/*.whl
           RELEASE_NOTES.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts-v${{ steps.get_version.outputs.version }}
+        path: |
+          dist/*.tar.gz
+          dist/*.whl
+          RELEASE_NOTES.md
+        retention-days: 30
+        if-no-files-found: error
+        compression-level: 9
 
     - name: Login to Docker Hub
       uses: docker/login-action@v3
@@ -105,6 +118,14 @@ jobs:
         # Push latest tag
         docker push threatflux/batch-api:latest
 
+    - name: Upload to PyPI
+      uses: pypa/gh-action-pypi-publish@v1.8.11
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages-dir: dist/
+        skip-existing: true
+        verbose: true
+        print-hash: true
 
     - name: Notify on failure
       if: failure()

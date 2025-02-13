@@ -65,11 +65,18 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.python-version }}
+        name: test-results-py${{ matrix.python-version }}-${{ matrix.docker-stage }}
         path: |
-          test-reports/
-          htmlcov/
+          test-reports/**/*
+          !test-reports/**/*.pyc
+          !test-reports/**/__pycache__
+          htmlcov/**/*
+          !htmlcov/**/*.pyc
+          !htmlcov/**/__pycache__
           .coverage
+        retention-days: 30
+        if-no-files-found: warn
+        compression-level: 9
 
   security:
     runs-on: ubuntu-latest
