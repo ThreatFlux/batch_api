@@ -87,7 +87,7 @@ Comprehensive documentation is available in the [docs](docs/) directory:
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.13 or higher
 - Docker (optional)
 - Make (optional)
 
@@ -199,7 +199,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Status
 
-- Version: 0.1.0
+- Version: 0.2.0
 - Development Stage: Alpha
 - Test Coverage: >80%
 - Build Status: Passing

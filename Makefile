@@ -112,8 +112,8 @@ coverage: test
 
 # Security check
 security-check: install
-	$(VENV)/bin/bandit -r $(SRC_DIR)
-	$(VENV)/bin/safety check
+	bandit -r $(SRC_DIR)
+	safety scan
 
 # Type checking
 type-check: install
@@ -134,7 +134,6 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  test         : Run tests with parallel execution and full reporting"
-	@echo "  test-fast    : Run tests in parallel without coverage (quick feedback)"
 	@echo "  coverage     : Generate detailed coverage reports"
 	@echo ""
 	@echo "Code quality:"

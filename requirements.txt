@@ -1,20 +1,20 @@
-anthropic>=0.8.0
-pandas>=2.0.0
-scikit-learn>=1.0.0
-numpy>=1.20.0
+anthropic>=0.45.2
+pandas>=2.2.3
+scikit-learn>=1.6.1
+numpy>=2.2.2
 pyyaml>=6.0.0
-jinja2>=3.0.0
-python-dotenv>=1.0.0
+jinja2>=3.1.5
+python-dotenv>=1.0.1
 
 # Development dependencies
 pytest>=7.0.0
 pytest-xdist>=3.3.0  # For parallel test execution
-pytest-cov>=4.1.0    # For coverage reporting
-pytest-html>=4.1.0   # For HTML test reports
-pytest-timeout>=2.1.0 # For test timeouts
+pytest-cov>=6.0.0    # For coverage reporting
+pytest-html>=4.1.1   # For HTML test reports
+pytest-timeout>=2.3.1 # For test timeouts
 pytest-sugar>=1.0.0  # For better test progress visualization
-pylint>=2.17.0
-black>=23.0.0
-mypy>=1.0.0
-bandit>=1.7.0        # For security checks
-safety>=2.3.0        # For dependency security checks
+pylint>=3.3.4
+black>=25.1.0
+mypy>=1.15.0
+bandit>=1.8.2        # For security checks
+safety>=3.2.14       # For dependency security checks

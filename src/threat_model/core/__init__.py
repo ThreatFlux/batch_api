@@ -1,4 +1,5 @@
 """Core modules for threat model generation."""
+
 import logging
 
 # Configure package logging
@@ -14,7 +15,7 @@ try:
         PROMPTS_DIR,
         OUTPUT_DIR,
         CSV_SETTINGS,
-        CORRELATION_WEIGHTS
+        CORRELATION_WEIGHTS,
     )
     from .data_processor import DataProcessor
     from .generator import ThreatModelGenerator
@@ -24,13 +25,13 @@ except ImportError as e:
 
 # Define public API
 __all__ = [
-    'DataProcessor',
-    'ThreatModelGenerator',
-    'DEFAULT_MODEL',
-    'MAX_TOKENS',
-    'BATCH_SIZE',
-    'PROMPTS_DIR',
-    'OUTPUT_DIR',
-    'CSV_SETTINGS',
-    'CORRELATION_WEIGHTS'
+    "DataProcessor",
+    "ThreatModelGenerator",
+    "DEFAULT_MODEL",
+    "MAX_TOKENS",
+    "BATCH_SIZE",
+    "PROMPTS_DIR",
+    "OUTPUT_DIR",
+    "CSV_SETTINGS",
+    "CORRELATION_WEIGHTS",
 ]

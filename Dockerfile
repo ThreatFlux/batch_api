@@ -1,58 +1,82 @@
-# Use Python 3.8 slim image as base
-FROM python:3.8-slim
+# Use builder stage for compiling dependencies
+FROM threatflux/python-builder:main AS builder
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Set working directory
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements files
+# Copy dependency files
 COPY requirements.txt .
 COPY setup.py .
 COPY pyproject.toml .
 COPY README.md .
+COPY src src/
+# Install build dependencies and project in development mode
+RUN pip3 install --user --no-cache-dir -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
 
-# Copy source code
+# Development stage
+FROM threatflux/python-builder:main AS development
+
+# Copy installed dependencies from builder
+COPY --from=builder /home/python_builder/.local /home/python_builder/.local
+
+# Copy source code and tests
 COPY src/ src/
 COPY tests/ tests/
+COPY docs/ docs/
+COPY setup.py .
+COPY pyproject.toml .
+COPY README.md .
+COPY requirements.txt .
+USER root
 
+RUN mkdir -p data output && \
+    chown -R python_builder:python_builder data output src tests docs
+USER python_builder
 # Create necessary directories
-RUN mkdir -p data output
+RUN pip3 install -e ".[dev]"
 
 # Copy data files
-COPY *.csv data/
+COPY office_suite_description_mitre_dump.csv data/
+COPY idp_description_mitre_dump.csv data/
+COPY audit_operations.csv data/
 
 # Set Python path
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/workspace/src
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Production stage
+FROM threatflux/python-builder:main AS production
 
-# Set default command
-ENTRYPOINT ["python", "-m", "threat_model"]
-CMD ["--help"]
+# Copy installed dependencies from builder
+COPY --from=builder /home/python_builder/.local /home/python_builder/.local
+
+# Copy only necessary source code
+COPY src/ src/
+
+# Create and setup directories
+RUN mkdir -p data output && \
+    chown -R python_builder:python_builder data output
+
+# Copy data files
+COPY office_suite_description_mitre_dump.csv data/
+COPY idp_description_mitre_dump.csv data/
+COPY audit_operations.csv data/
+
+# Set Python path
+ENV PYTHONPATH=/workspace/src
+
+# Add metadata
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.authors="wyattroersma@gmail.com" \
+      org.opencontainers.image.url="https://github.com/ThreatFlux/batch_api" \
+      org.opencontainers.image.documentation="https://github.com/ThreatFlux/batch_api" \
+      org.opencontainers.image.source="https://github.com/ThreatFlux/batch_api" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.vendor="ThreatFlux" \
+      org.opencontainers.image.title="batch_api" \
+      org.opencontainers.image.description="ThreatFlux Microsoft 365 Threat Model Generator"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import threat_model; print('Health check passed')" || exit 1
+    CMD python3 -c "import threat_model; print('Health check passed')" || exit 1
 
-# Labels
-LABEL maintainer="Security Team" \
-      version="0.1.0" \
-      description="Microsoft 365 Threat Model Generator" \
-      org.opencontainers.image.source="https://github.com/yourusername/threat-model-generator"
+# Set entrypoint and default command
+ENTRYPOINT ["python3", "-m", "threat_model"]
+CMD ["--help"]

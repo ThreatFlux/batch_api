@@ -1,4 +1,5 @@
 """Configuration settings for the threat model generator."""
+
 from pathlib import Path
 from typing import Dict, Any
 
@@ -18,26 +19,22 @@ CSV_SETTINGS: Dict[str, Any] = {
     "mitre": {
         "required_columns": ["TID", "Tactic", "Technique", "Description"],
         "index_column": "TID",
-        "encoding": "utf-8"
+        "encoding": "utf-8",
     },
     "idp": {
         "required_columns": ["TID", "Tactic", "Technique", "Description"],
         "index_column": "TID",
-        "encoding": "utf-8"
+        "encoding": "utf-8",
     },
     "audit": {
         "required_columns": ["FriendlyName", "Operation", "Description"],
         "index_column": "Operation",
-        "encoding": "utf-8"
-    }
+        "encoding": "utf-8",
+    },
 }
 
 # Correlation settings
-CORRELATION_WEIGHTS = {
-    "exact_match": 1.0,
-    "partial_match": 0.5,
-    "description_similarity": 0.3
-}
+CORRELATION_WEIGHTS = {"exact_match": 1.0, "partial_match": 0.5, "description_similarity": 0.3}
 
 # Logging settings
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

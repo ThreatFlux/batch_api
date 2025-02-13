@@ -1,5 +1,7 @@
 """Batch processing module for threat model generation."""
+
 import json
+
 # Standard library imports
 import logging
 import time
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Sleep time for rate limit retries (in seconds)
 SLEEP_TIME = 1  # Reduced for testing
+
 
 class BatchProcessor:
     """Handles batch processing of threat model generation requests."""
@@ -48,24 +51,24 @@ class BatchProcessor:
         # Convert audit ops data to a more structured format
         formatted_audit_ops = {}
         for _, row in self.data_processor.audit_data.iterrows():
-            formatted_audit_ops[row.get('Operation', '')] = {
-                'FriendlyName': row.get('FriendlyName', ''),
-                'Description': row.get('Description', '')
+            formatted_audit_ops[row.get("Operation", "")] = {
+                "FriendlyName": row.get("FriendlyName", ""),
+                "Description": row.get("Description", ""),
             }
         # Create system prompt
         system_prompt = self._create_system_prompt(formatted_audit_ops)
         return {
-            'custom_id': custom_id,
-            'params': {
-                'model': DEFAULT_MODEL,
-                'max_tokens': MAX_TOKENS,
-                'system': system_prompt,
-                'messages': [{
-                    "role": "user",
-                    "content": self._create_technique_prompt(technique_id, formatted_audit_ops)
-                }]
-            }
+            "custom_id": custom_id,
+            "params": {
+                "model": DEFAULT_MODEL,
+                "max_tokens": MAX_TOKENS,
+                "system": system_prompt,
+                "messages": [
+                    {"role": "user", "content": self._create_technique_prompt(technique_id, formatted_audit_ops)}
+                ],
+            },
         }
+
     def process_batch(self, technique_ids: List[str], batch_start: int) -> Dict[str, str]:
         """Process a single batch of technique IDs.
 
@@ -81,10 +84,7 @@ class BatchProcessor:
         # Create batch requests
         for i, technique_id in enumerate(technique_ids):
             try:
-                request = self._create_batch_request(
-                    technique_id,
-                    f"technique_{batch_start + i}"
-                )
+                request = self._create_batch_request(technique_id, f"technique_{batch_start + i}")
                 requests.append(request)
                 logger.info("Request created for technique %s", technique_id)
             except ValueError as ve:
@@ -93,7 +93,7 @@ class BatchProcessor:
             except KeyError as ke:
                 logger.error("Key error for technique %s: %s", technique_id, str(ke))
                 continue
-            except Exception as e: # disable=W0718 disable=bare-except
+            except Exception as e:  # disable=W0718 disable=bare-except
                 logger.error("Unexpected error for technique %s: %s", technique_id, str(e))
                 continue
         # Check if there are requests to process
@@ -104,13 +104,13 @@ class BatchProcessor:
             # Convert to Request objects
             request_objects = [
                 Request(
-                    custom_id=req['custom_id'],
+                    custom_id=req["custom_id"],
                     params=MessageCreateParamsNonStreaming(
-                        model=req['params']['model'],
-                        max_tokens=req['params']['max_tokens'],
-                        messages=req['params']['messages'],
-                        system=req['params']['system']
-                    )
+                        model=req["params"]["model"],
+                        max_tokens=req["params"]["max_tokens"],
+                        messages=req["params"]["messages"],
+                        system=req["params"]["system"],
+                    ),
                 )
                 for req in requests
             ]
@@ -125,10 +125,11 @@ class BatchProcessor:
         except RateLimitError as e:
             logger.error("Rate limit exceeded. Retrying in %d seconds. %s", SLEEP_TIME, str(e))
             time.sleep(SLEEP_TIME)
-        except Exception as e: # disable=W0718
+        except Exception as e:  # disable=W0718
             logger.error("Error processing batch: %s", str(e))
         # Handle empty batch
         return batch_content
+
     def generate_threat_models(self, output_file: str) -> None:
         """Generate threat models for all techniques in batches.
 
@@ -137,7 +138,7 @@ class BatchProcessor:
         """
         try:
             # Get technique IDs
-            technique_ids = self.data_processor.mitre_data['TID'].unique().tolist()
+            technique_ids = self.data_processor.mitre_data["TID"].unique().tolist()
             if not technique_ids:
                 raise ValueError("No MITRE techniques found in data")
             logger.info("Found %s unique technique IDs", len(technique_ids))
@@ -151,19 +152,19 @@ class BatchProcessor:
                 batch_end = min(batch_start + BATCH_SIZE, total_techniques)
                 current_batch = technique_ids[batch_start:batch_end]
                 logger.info(
-                    "Processing batch %s of %s",
-                    batch_start // BATCH_SIZE + 1, (total_techniques - 1) // BATCH_SIZE + 1)
+                    "Processing batch %s of %s", batch_start // BATCH_SIZE + 1, (total_techniques - 1) // BATCH_SIZE + 1
+                )
                 logger.info("Techniques in batch: %s", current_batch)
                 batch_content = self.process_batch(current_batch, batch_start)
                 all_content.update(batch_content)
                 processed_techniques = batch_end
-                logger.info("Completed %s of %s techniques in this batch",
-                            processed_techniques, total_techniques)
+                logger.info("Completed %s of %s techniques in this batch", processed_techniques, total_techniques)
             # Save results
             self._save_results(output_file, all_content)
         except Exception as e:
             logger.error("Error generating threat models for techniques in batch: %s", str(e))
             raise
+
     def _wait_for_batch_completion(self, batch_id: str) -> None:
         """Wait for a batch to complete processing.
 
@@ -176,16 +177,17 @@ class BatchProcessor:
                 if batch_status.processing_status == "ended":
                     logger.info("Batch %s processing completed", batch_id)
                     break
-                logger.info("Batch %s still processing. Status: %s",
-                            batch_id, batch_status.processing_status)
+                logger.info("Batch %s still processing. Status: %s", batch_id, batch_status.processing_status)
                 time.sleep(SLEEP_TIME)
             except RateLimitError as e:
-                logger.error("Rate limit exceeded while checking batch status. Retrying in %d seconds. %s",
-                             SLEEP_TIME, str(e))
+                logger.error(
+                    "Rate limit exceeded while checking batch status. Retrying in %d seconds. %s", SLEEP_TIME, str(e)
+                )
                 time.sleep(SLEEP_TIME)
-            except Exception as e: # disable=W0718
+            except Exception as e:  # disable=W0718
                 logger.error("Error checking batch status: %s", str(e))
                 time.sleep(SLEEP_TIME)
+
     def _process_batch_results(self, batch_id: str) -> Dict[str, str]:
         """Process results from a completed batch.
 
@@ -209,6 +211,7 @@ class BatchProcessor:
                 if result.result.type == "errored":
                     logger.error("Error message: %s", result.result.error)
         return batch_content
+
     def _save_results(self, output_file: str, all_content: Dict[str, str]) -> None:
         """Save generated content to output file.
 
@@ -216,19 +219,18 @@ class BatchProcessor:
             output_file: Path to output file
             all_content: Dictionary of generated content
         """
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             # Write introduction
             f.write(self._create_introduction())
             # Write table of contents
-            sorted_techniques = sorted(all_content.items(), key=lambda x: int(x[0].split('_')[1]))
+            sorted_techniques = sorted(all_content.items(), key=lambda x: int(x[0].split("_")[1]))
             f.write("## Table of Contents\n\n")
             for technique_id, content in sorted_techniques:
                 # Extract title from content
-                title = next((line for line in content.split('\n') if line.startswith('# Threat Model:')), '')
+                title = next((line for line in content.split("\n") if line.startswith("# Threat Model:")), "")
                 if title:
-                    title = title.replace('# Threat Model: ', '')
-                    anchor = title.lower().replace(' ', '-')\
-                        .replace('(', '').replace(')', '').replace('.', '')
+                    title = title.replace("# Threat Model: ", "")
+                    anchor = title.lower().replace(" ", "-").replace("(", "").replace(")", "").replace(".", "")
                     f.write(f"- [{title}](#{anchor})\n")
             f.write("\n---\n\n")
             # Write technique content
@@ -238,6 +240,7 @@ class BatchProcessor:
         logger.info("Threat model saved to %s", output_file)
         logger.info("Generated %s technique-specific threat models", len(all_content))
         logger.info("Added table of contents with navigation links")
+
     @staticmethod
     def _create_introduction() -> str:
         """Create introduction text for the threat model document.
@@ -256,6 +259,7 @@ class BatchProcessor:
             "- Specific incident response playbooks\n"
             "- Relevant references and documentation\n\n"
         )
+
     def _create_system_prompt(self, formatted_audit_ops: Dict[str, Any]) -> str:
         """Create system prompt for the model.
 
@@ -289,6 +293,7 @@ class BatchProcessor:
             "3. Detection strategies must include concrete thresholds and time windows\n"
             "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
         )
+
     def _create_technique_prompt(self, technique_id: str, audit_ops: dict) -> str:
         """Create a detailed prompt for a specific MITRE technique.
 
@@ -300,9 +305,7 @@ class BatchProcessor:
             str: Formatted prompt string
         """
         # Get technique data
-        technique_df = self.data_processor.mitre_data[
-            self.data_processor.mitre_data['TID'] == technique_id
-            ]
+        technique_df = self.data_processor.mitre_data[self.data_processor.mitre_data["TID"] == technique_id]
         # Check if technique exists
         if technique_df.empty:
             raise ValueError(f"No technique found with ID: {technique_id}")
@@ -310,9 +313,9 @@ class BatchProcessor:
         technique_data = technique_df.iloc[0]
         # Find relevant audit operations
         relevant_ops = [
-            op for op, details in audit_ops.items()
-            if any(term in details['Description'].lower()
-                   for term in technique_data['Description'].lower().split())
+            op
+            for op, details in audit_ops.items()
+            if any(term in details["Description"].lower() for term in technique_data["Description"].lower().split())
         ]
         return f"""Generate a detailed threat model for technique
     {technique_id} ({technique_data['Technique']}) following this exact structure:
