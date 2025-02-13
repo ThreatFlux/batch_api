@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "threat_model"
 version = "0.2.0"
 authors = [
-    { name="Security Team" },
+    { name="Wyatt Roersma" },
 ]
 description = "Threat model generation for Microsoft 365 and Entra ID"
 readme = "README.md"
@@ -18,21 +18,28 @@ classifiers = [
     "Programming Language :: Python :: 3.13"
 ]
 dependencies = [
-    "anthropic>=0.8.0",
-    "pandas>=2.0.0",
-    "scikit-learn>=1.0.0",
-    "numpy>=1.20.0",
+    "anthropic>=0.45.2",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.6.1",
+    "numpy>=2.2.2",
     "pyyaml>=6.0.0",
-    "jinja2>=3.0.0",
-    "python-dotenv>=1.0.0"
+    "jinja2>=3.1.5",
+    "python-dotenv>=1.0.1"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pylint>=2.17.0",
-    "black>=23.0.0",
-    "mypy>=1.0.0"
+    "pytest-xdist>=3.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-html>=4.1.1",
+    "pytest-timeout>=2.3.1",
+    "pytest-sugar>=1.0.0",
+    "pylint>=3.3.4",
+    "black>=25.1.0",
+    "mypy>=1.15.0",
+    "bandit>=1.8.2",
+    "safety>=3.2.14"
 ]
 
 [tool.setuptools.packages.find]
@@ -68,3 +75,9 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 check_untyped_defs = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "-ra -q --cov=threat_model --cov-report=html --html=test-reports/report.html --timeout=300"
+testpaths = [
+    "tests",
+]
