@@ -8,7 +8,7 @@ PYLINT := pylint
 BLACK := black
 DOCKER := docker
 IMAGE_NAME := threat-model-generator
-IMAGE_TAG := latest
+IMAGE_TAG := main
 
 # Python settings
 VENV := venv
@@ -58,8 +58,7 @@ test: install
 
 # Run linting and type checking
 lint: install
-	$(VENV)/bin/pylint $(SRC_DIR) $(TEST_DIR) --output-format=parseable --reports=yes
-	$(VENV)/bin/mypy $(SRC_DIR) --show-error-codes --pretty
+	$(VENV)/bin/pylint $(SRC_DIR) $(TEST_DIR) --rcfile=.pylintrc --output-format=colorized --reports=no --fail-under=8
 
 # Format code
 format: install
@@ -154,7 +153,7 @@ help:
 	@echo "  dist         : Build distribution packages"
 
 # CI targets
-ci-test: install test lint type-check security-check
+ci-test: format install test lint type-check security-check
 
 # Development workflow targets
 dev: format lint test

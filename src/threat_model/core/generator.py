@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 # Third-party imports
-import yaml # type: ignore
+import yaml  # type: ignore
 import anthropic
 import jinja2
 

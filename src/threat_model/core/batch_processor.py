@@ -184,7 +184,7 @@ class BatchProcessor:
                     "Rate limit exceeded while checking batch status. Retrying in %d seconds. %s", SLEEP_TIME, str(e)
                 )
                 time.sleep(SLEEP_TIME)
-            except Exception as e:  # disable=W0718
+            except Exception as e:  # disable=W0718 disable=bare-except
                 logger.error("Error checking batch status: %s", str(e))
                 time.sleep(SLEEP_TIME)
 
