@@ -38,6 +38,8 @@ jobs:
       run: make type-check
 
     - name: Run security checks
+      env:
+        SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
       run: make security-check
 
     - name: Run tests with coverage
