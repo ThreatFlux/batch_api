@@ -1,0 +1,75 @@
+name: CI Test Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.13]
+        docker-stage: [builder, development, production]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Format code
+      run: make format
+
+    - name: Run linting
+      run: make lint
+
+    - name: Run type checking
+      run: make type-check
+
+    - name: Run security checks
+      run: make security-check
+
+    - name: Run tests with coverage
+      run: |
+        make test
+        make coverage
+
+    - name: Build Docker stage
+      run: |
+        docker build --target ${{ matrix.docker-stage }} \
+          -t batch-api:${{ matrix.docker-stage }} .
+
+    - name: Test Docker stage
+      run: |
+        if [ "${{ matrix.docker-stage }}" = "production" ]; then
+          # Test production stage health check
+          docker run -d --name test-container batch-api:${{ matrix.docker-stage }}
+          sleep 5
+          docker inspect --format='{{.State.Health.Status}}' test-container | grep -q healthy
+        fi
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          test-reports/
+          htmlcov/
+          .coverage

@@ -1,0 +1,119 @@
+name: Publish Release
+
+on:
+  workflow_run:
+    workflows: ["Version Auto-increment"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Get version
+      id: get_version
+      run: |
+        if [ -f "pyproject.toml" ]; then
+          VERSION=$(grep -oP '(?<=version = ")[^"]*' pyproject.toml)
+        else
+          VERSION=$(grep -oP '(?<=version=")[^"]*' setup.py)
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build package
+      run: python -m build
+
+    - name: Build Docker images
+      run: |
+        # Build all stages
+        docker build --target builder -t threatflux/batch-api:${{ steps.get_version.outputs.version }}-builder .
+        docker build --target development -t threatflux/batch-api:${{ steps.get_version.outputs.version }}-dev .
+        docker build --target production -t threatflux/batch-api:${{ steps.get_version.outputs.version }} .
+        
+        # Tag latest for production
+        docker tag threatflux/batch-api:${{ steps.get_version.outputs.version }} threatflux/batch-api:latest
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          # If no previous tag, get all commits
+          git log --pretty=format:"- %s" > RELEASE_NOTES.md
+        else
+          git log --pretty=format:"- %s" $LAST_TAG..HEAD > RELEASE_NOTES.md
+        fi
+        
+        # Add header
+        echo "# Release v${{ steps.get_version.outputs.version }}" | cat - RELEASE_NOTES.md > temp && mv temp RELEASE_NOTES.md
+        
+        # Add Docker image information
+        echo -e "\n## Docker Images\n" >> RELEASE_NOTES.md
+        echo "- \`threatflux/batch-api:${{ steps.get_version.outputs.version }}\` (production)" >> RELEASE_NOTES.md
+        echo "- \`threatflux/batch-api:${{ steps.get_version.outputs.version }}-dev\` (development)" >> RELEASE_NOTES.md
+        echo "- \`threatflux/batch-api:${{ steps.get_version.outputs.version }}-builder\` (builder)" >> RELEASE_NOTES.md
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        name: Release v${{ steps.get_version.outputs.version }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        files: |
+          dist/*
+          RELEASE_NOTES.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Push Docker images
+      run: |
+        # Push versioned images
+        docker push threatflux/batch-api:${{ steps.get_version.outputs.version }}-builder
+        docker push threatflux/batch-api:${{ steps.get_version.outputs.version }}-dev
+        docker push threatflux/batch-api:${{ steps.get_version.outputs.version }}
+        
+        # Push latest tag
+        docker push threatflux/batch-api:latest
+
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Release workflow failed for v${{ steps.get_version.outputs.version }}',
+            body: 'The release workflow failed. Please check the workflow logs for details.'
+          })
