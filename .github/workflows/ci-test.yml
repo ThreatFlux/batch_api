@@ -37,11 +37,6 @@ jobs:
     - name: Run type checking
       run: make type-check
 
-    - name: Run security checks
-      env:
-        SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
-      run: make security-check
-
     - name: Run tests with coverage
       run: |
         make test
@@ -75,3 +70,12 @@ jobs:
           test-reports/
           htmlcov/
           .coverage
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - name: Run Safety CLI to check for vulnerabilities
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
