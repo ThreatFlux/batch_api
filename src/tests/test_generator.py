@@ -107,6 +107,7 @@ def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None
     # Create test templates with expected structure
     templates = {
         "system_prompt": "System prompt content",
+        "system_prompt_summary": "System prompt summary",
         "technique_model_template": "Technique model template",
         "section_template": "Section template",
         "correlation_prompt": "Correlation prompt",

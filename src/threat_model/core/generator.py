@@ -47,7 +47,7 @@ class ThreatModelGenerator:
         if not template_path.exists():
             raise FileNotFoundError(f"Templates file not found at {template_path}")
         try:
-            with open(template_path) as f:
+            with open(template_path, encoding="utf-8") as f:
                 templates = yaml.safe_load(f)
                 # Ensure all values are strings
                 return {k: str(v) for k, v in templates.items()}
@@ -124,12 +124,11 @@ class ThreatModelGenerator:
         # Check for high-impact keywords
         if score > 15:
             return "Critical"
-        elif score > 10:
+        if score > 10:
             return "High"
-        elif score > 5:
+        if score > 5:
             return "Medium"
-        else:
-            return "Low"
+        return "Low"
 
     def _calculate_impact(self, techniques: List[Dict[str, Any]]) -> str:
         """Calculate potential impact of technique group.
@@ -164,10 +163,9 @@ class ThreatModelGenerator:
         # Check for high likelihood based on number of operations
         if total_ops > 20:
             return "High"
-        elif total_ops > 10:
+        if total_ops > 10:
             return "Medium"
-        else:
-            return "Low"
+        return "Low"
 
     def _get_combined_operations(self, techniques: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Get combined and deduplicated operations for technique group.
@@ -214,7 +212,7 @@ class ThreatModelGenerator:
             "behavioral_analytics": {"baseline_period": "30d", "anomaly_detection": True, "sequence_analysis": True},
         }
 
-    def _create_controls(self, techniques: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _create_controls(self, techniques: List[Dict[str, Any]]) -> Dict[str, Any]:  # ignore: W0613
         """Create security controls for technique group.
 
         Args:
@@ -223,6 +221,8 @@ class ThreatModelGenerator:
         Returns:
             Security controls configuration
         """
+        if techniques:
+            logger.info("Creating security controls for technique group %s", techniques[0].get("name"))
         return {
             "preventive": [
                 {
@@ -269,6 +269,8 @@ class ThreatModelGenerator:
             ValueError: If no MITRE techniques are found
             Exception: For other processing errors
         """
+        if sections:
+            logger.warning("Ignoring section descriptions, using MITRE techniques instead")
         try:
             # Generate and save the threat models using batch processor
             self.batch_processor.generate_threat_models(output_file)
@@ -323,7 +325,7 @@ class ThreatModelGenerator:
                 logger.info("Successfully created output file at %s", output_path)
             except Exception as e:
                 logger.error("Error writing to file: %s", str(e))
-                raise IOError(f"Failed to write output file at {output_path}: {str(e)}")
+                raise IOError(f"Failed to write output file at {output_path}: {str(e)}") from e
             logger.info("Threat model successfully generated and saved to %s", output_path)
             return content
         except FileNotFoundError as e:

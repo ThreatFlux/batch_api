@@ -14,7 +14,7 @@ def test_templates_file_exists() -> None:
 
 def test_templates_file_path() -> None:
     """Test that the templates file path is correctly configured."""
-    expected_path = Path(__file__).parent.parent / "src" / "threat_model" / "prompts" / "templates.yaml"
+    expected_path = Path(__file__).parent.parent / "threat_model" / "prompts" / "templates.yaml"
     assert TEMPLATES_FILE.name == "templates.yaml"
     assert TEMPLATES_FILE.suffix == ".yaml"
     assert os.path.normpath(TEMPLATES_FILE) == os.path.normpath(expected_path)

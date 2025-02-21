@@ -93,9 +93,6 @@ class BatchProcessor:
             except KeyError as ke:
                 logger.error("Key error for technique %s: %s", technique_id, str(ke))
                 continue
-            except Exception as e:  # disable=W0718 disable=bare-except
-                logger.error("Unexpected error for technique %s: %s", technique_id, str(e))
-                continue
         # Check if there are requests to process
         if not requests:
             return batch_content
@@ -125,8 +122,6 @@ class BatchProcessor:
         except RateLimitError as e:
             logger.error("Rate limit exceeded. Retrying in %d seconds. %s", SLEEP_TIME, str(e))
             time.sleep(SLEEP_TIME)
-        except Exception as e:  # disable=W0718
-            logger.error("Error processing batch: %s", str(e))
         # Handle empty batch
         return batch_content
 
@@ -184,9 +179,6 @@ class BatchProcessor:
                     "Rate limit exceeded while checking batch status. Retrying in %d seconds. %s", SLEEP_TIME, str(e)
                 )
                 time.sleep(SLEEP_TIME)
-            except Exception as e:  # disable=W0718 disable=bare-except
-                logger.error("Error checking batch status: %s", str(e))
-                time.sleep(SLEEP_TIME)
 
     def _process_batch_results(self, batch_id: str) -> Dict[str, str]:
         """Process results from a completed batch.
@@ -219,13 +211,15 @@ class BatchProcessor:
             output_file: Path to output file
             all_content: Dictionary of generated content
         """
-        with open(output_file, "w") as f:
+        with open(output_file, encoding="utf-8") as f:
             # Write introduction
             f.write(self._create_introduction())
             # Write table of contents
             sorted_techniques = sorted(all_content.items(), key=lambda x: int(x[0].split("_")[1]))
             f.write("## Table of Contents\n\n")
             for technique_id, content in sorted_techniques:
+                # Parse technique ID
+                logger.debug("Parsing technique ID: %s", technique_id)
                 # Extract title from content
                 title = next((line for line in content.split("\n") if line.startswith("# Threat Model:")), "")
                 if title:
