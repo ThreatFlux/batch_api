@@ -1,9 +1,9 @@
 """Unit tests for the main application module."""
 
 import os
-from pathlib import Path
-import pytest
 from unittest.mock import patch, MagicMock, Mock
+import pytest
+
 from threat_model.__main__ import parse_args, main
 
 
@@ -80,6 +80,8 @@ def test_main_success(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
 @patch("threat_model.__main__.load_dotenv")
 def test_main_batch_mode(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
     """Test main function in batch mode."""
+    if mock_load_dotenv:
+        pass
     # Mock environment variables
     mock_env = {"ANTHROPIC_API_KEY": "test-key"}
     with patch.dict(os.environ, mock_env):
@@ -101,6 +103,8 @@ def test_main_batch_mode(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
 def test_main_missing_api_key(mock_load_dotenv: Mock) -> None:
     """Test main function with missing API key."""
     # Mock environment without API key
+    if mock_load_dotenv:
+        pass
     with patch("sys.argv", ["threat_model"]):
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValueError) as exc_info:
@@ -112,6 +116,8 @@ def test_main_missing_api_key(mock_load_dotenv: Mock) -> None:
 @patch("threat_model.__main__.load_dotenv")
 def test_main_generator_error(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
     """Test main function handling generator errors."""
+    if mock_load_dotenv:
+        pass
     # Mock environment variables
     mock_env = {"ANTHROPIC_API_KEY": "test-key"}
     with patch("sys.argv", ["threat_model"]):
@@ -131,6 +137,8 @@ def test_main_generator_error(mock_load_dotenv: Mock, mock_generator: Mock) -> N
 @patch("threat_model.__main__.load_dotenv")
 def test_main_custom_paths(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
     """Test main function with custom file paths."""
+    if mock_load_dotenv:
+        pass
     # Mock environment variables
     mock_env = {"ANTHROPIC_API_KEY": "test-key"}
     with patch.dict(os.environ, mock_env):

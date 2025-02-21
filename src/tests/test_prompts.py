@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-import pytest
 from threat_model.prompts import TEMPLATES_FILE
 
 

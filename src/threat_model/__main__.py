@@ -21,22 +21,24 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="A Cli for generating data from LLM from the command line")
     parser.add_argument("--mode", "-m", type=str, help="Mode to run the cli in", default="threat_model")
     parser.add_argument(
-        "--mitre-path", type=str, help="Path to MITRE CSV file", default="office_suite_description_mitre_dump.csv"
+        "--mitre-path",
+        type=str,
+        help="Path to MITRE CSV file",
+        default="office_suite_description_mitre_dump.csv"
     )
-    parser.add_argument("--idp-path", type=str, help="Path to IDP CSV file", default="idp_description_mitre_dump.csv")
+    parser.add_argument("--idp-path",
+                        type=str, help="Path to IDP CSV file",
+                        default="idp_description_mitre_dump.csv")
     parser.add_argument(
         "--audit-path", type=str, help="Path to audit operations CSV file", default="audit_operations.csv"
     )
-    parser.add_argument("--output", type=str, help="Output file path", default="threat_model.md")
+    parser.add_argument("--output", "-o",
+                        type=str,
+                        help="Output file path or directory",
+                        default="threat_model.md")
     parser.add_argument("--batch", action="store_true", help="Use batch processing mode")
     parser.add_argument("--recursive", "-r", action="store_true", help="Recursively process directories")
-    parser.add_argument(
-        "--dir-output",
-        "-d",
-        type=str,
-        default="summary_docs",
-        help="Output directory for summaries (default: summary_docs)",
-    )
+    parser.add_argument("--input", "-i", type=str, help="Input file or directory", default="summary_docs")
     parser.add_argument(
         "--sections",
         nargs="+",
@@ -92,19 +94,28 @@ def main() -> None:
 
             processor = SummaryProcessor(config)
             client = create_client()
-
+            # Get Current working directory
             # Convert input path to Path object
-            input_path = Path(args.input)
+            input_path =  Path(args.input)
 
             # Create output directory if it doesn't exist
-            os.makedirs(args.output_dir, exist_ok=True)
+            os.makedirs(args.output, exist_ok=True)
 
             if input_path.is_file():
                 # Process single file
-                process_files([input_path], processor, client, args.output_dir)
+                process_files([input_path], processor, client, args.output)
             elif input_path.is_dir():
                 # Process directory
-                process_directory(input_path, args.recursive, processor, client, args.output_dir)
+                process_directory(input_path, args.recursive, processor, client, args.output)
+            elif input_path:
+                try:
+                    process_directory(input_path, args.recursive, processor, client, args.output)
+                except FileNotFoundError as e:
+                    logger.error("File not found: %s", e)
+                    raise
+                except ValueError as e:
+                    logger.error("Value error: %s", e)
+                    raise
             else:
                 logger.error("Invalid input path: %s", input_path)
                 sys.exit(1)

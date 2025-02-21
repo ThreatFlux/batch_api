@@ -2,3 +2,6 @@
 venv
 __pycache__
 *.pyc
+/src/tests/htmlcov/
+/src/tests/test-reports/
+/src/tests/.coverage

@@ -14,7 +14,9 @@ from typing import Dict, List, Optional, TypeVar, Protocol, Any
 # Third-party imports
 import anthropic
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+from anthropic.types.messages import MessageBatch, MessageBatchIndividualResponse
 from anthropic.types.messages.batch_create_params import Request
+
 from ruamel.yaml import YAML
 
 # Configure logging
@@ -39,19 +41,6 @@ class BatchComponent(Protocol):
         """Validate the batch component."""
         raise NotImplementedError
 
-
-class MessageBatch(BatchComponent):
-    """Protocol for message batch responses."""
-
-    id: str
-    processing_status: str
-
-    def process(self) -> None:
-        """Process the message batch."""
-
-    def validate(self) -> bool:
-        """Validate message batch properties."""
-        return bool(self.id and self.processing_status)
 
 
 class MessageContent(BatchComponent):
@@ -127,7 +116,7 @@ class BatchProcessingError(Exception):
     """Custom exception for batch processing errors."""
 
 
-class BatchProcessor:
+class BatchProcessor: # pylint: disable=R0903
     """Class to handle batch processing operations."""
 
     def __init__(self, client: anthropic.Anthropic):
@@ -227,7 +216,7 @@ def process_directory(
     batch_handler.process_directory(dir_path, recursive)
 
 
-class BatchFileProcessor:
+class BatchFileProcessor: # pylint: disable=R0903
     """Handler for batch file processing."""
 
     def __init__(self, processor: Any, client: anthropic.Anthropic, output_dir: str):
@@ -247,7 +236,7 @@ class BatchFileProcessor:
             request, summary = self._prepare_file_request(file_path)
             if request:
                 requests.append(request)
-                summaries[request.custom_id] = summary
+                summaries[request.get("custom_id")] = summary
         if requests:
             self._process_batch_requests(requests, summaries)
 
@@ -317,15 +306,12 @@ class BatchFileProcessor:
             else:
                 logger.error("Failed to process request %s: %s", custom_id, response.result.error or "Unknown error")
 
-    def _validate_batch_response(self, result: Any) -> Optional[BatchResponse]:
+    def _validate_batch_response(self, result: Any) -> Optional[MessageBatchIndividualResponse]:
         """Validate and cast batch response."""
         try:
             response = result
-            if not isinstance(response, BatchResponse):
+            if not isinstance(response, MessageBatchIndividualResponse):
                 logger.error("Invalid response format")
-                return None
-            if not response.validate():
-                logger.error("Response validation failed")
                 return None
             return response
         except ValueError:
@@ -372,7 +358,7 @@ class BatchFileProcessor:
             raise
 
 
-class BatchDirectoryProcessor:
+class BatchDirectoryProcessor: # pylint: disable=R0903
     """Handler for batch directory processing."""
 
     def __init__(self, processor: Any, client: anthropic.Anthropic, output_dir: str):

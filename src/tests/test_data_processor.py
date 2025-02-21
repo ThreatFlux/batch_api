@@ -1,7 +1,5 @@
 """Unit tests for the data processor module."""
 
-import os
-from pathlib import Path
 import pandas as pd
 import pytest
 from threat_model.core.data_processor import DataProcessor
@@ -109,13 +107,7 @@ def test_correlate_techniques_with_operations(data_processor, sample_data_dir):
     assert isinstance(correlation_matrix, dict)
     assert len(correlation_matrix) > 0
     for technique_id, correlations in correlation_matrix.items():
-        assert isinstance(correlations, list)
-        for correlation in correlations:
-            assert isinstance(correlation, tuple)
-            assert len(correlation) == 2
-            assert isinstance(correlation[0], str)
-            assert isinstance(correlation[1], float)
-            assert 0 <= correlation[1] <= 1
+        verify_results(correlations)
 
 
 def test_get_related_techniques(data_processor, sample_data_dir):
@@ -130,13 +122,21 @@ def test_get_related_techniques(data_processor, sample_data_dir):
     related = data_processor.get_related_techniques("T1110")
 
     # Verify results
+    verify_results(related)
+
+
+def verify_results(related):
+    """Verify related techniques results.
+    Args:
+        related: List of related techniques or operations with similarity scores
+    """
     assert isinstance(related, list)
-    for technique in related:
-        assert isinstance(technique, tuple)
-        assert len(technique) == 2
-        assert isinstance(technique[0], str)
-        assert isinstance(technique[1], float)
-        assert 0 <= technique[1] <= 1
+    for value_to_check in related:
+        assert isinstance(value_to_check, tuple)
+        assert len(value_to_check) == 2
+        assert isinstance(value_to_check[0], str)
+        assert isinstance(value_to_check[1], float)
+        assert 0 <= value_to_check[1] <= 1
 
 
 def test_get_technique_groups(data_processor, sample_data_dir):
