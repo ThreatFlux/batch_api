@@ -294,7 +294,7 @@ class BatchFileProcessor: # pylint: disable=R0903
             if not response:
                 continue
 
-            custom_id = response.request.custom_id
+            custom_id = response.custom_id
             file_info = summaries.get(custom_id)
 
             if not file_info:
@@ -321,7 +321,7 @@ class BatchFileProcessor: # pylint: disable=R0903
             logger.error("Invalid response format")
             return None
 
-    def _save_successful_result(self, response: BatchResponse, file_info: Dict[str, Any], yaml_handler: YAML) -> None:
+    def _save_successful_result(self, response: MessageBatchIndividualResponse, file_info: Dict[str, Any], yaml_handler: YAML) -> None:
         """Save successful batch result."""
         try:
             content_parts = []
