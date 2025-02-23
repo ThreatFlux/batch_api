@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Update GitHub Actions
-        uses: ThreatFlux/githubWorkFlowChecker@fda84ac30f6fdf8548b96f9e1ece3e47e02c463e
+        uses: ThreatFlux/githubWorkFlowChecker@a506bb39c9a8e158f80558d68621effb023b27f2
         with:
           token: ${{ secrets.GIT_TOKEN }}
           owner: ThreatFlux
