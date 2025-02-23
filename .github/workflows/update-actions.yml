@@ -13,10 +13,10 @@ jobs:
       pull-requests: write # Needed for creating PRs
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Update GitHub Actions
-        uses: ThreatFlux/githubWorkFlowChecker@20250223.1.17
+        uses: ThreatFlux/githubWorkFlowChecker@fda84ac30f6fdf8548b96f9e1ece3e47e02c463e  # 20250223.1.17
         with:
           token: ${{ secrets.GIT_TOKEN }}
           owner: ThreatFlux
