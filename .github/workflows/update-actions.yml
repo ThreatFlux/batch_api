@@ -21,5 +21,4 @@ jobs:
           token: ${{ secrets.GIT_TOKEN }}
           owner: ThreatFlux
           repo-name: batch_api
-          repo: /home/runner/work/batch_api/batch_api
           labels: "dependencies,security,actions"
