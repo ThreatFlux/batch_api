@@ -1,0 +1,24 @@
+name: Update GitHub Actions Dependencies
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"  # Runs every Monday at midnight
+  workflow_dispatch:      # Allows manual triggering
+
+jobs:
+  update-actions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    # Needed for creating commits
+      pull-requests: write # Needed for creating PRs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update GitHub Actions
+        uses: ThreatFlux/githubWorkFlowChecker@v1.0.0
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
+          owner: ThreatFlux
+          repo-name: batch_api
+          labels: "dependencies,security,actions"
