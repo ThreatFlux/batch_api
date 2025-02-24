@@ -5,14 +5,13 @@ on:
     - cron: "0 0 * * 1"  # Runs every Monday
   workflow_dispatch:      # Manual trigger option
 
-permissions:
-  contents: write         # Required to modify repository contents
-  pull-requests: write    # Required to create PRs
-  actions: read           # Required to read workflow files
-
 jobs:
   update-actions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write         # Required to modify repository contents
+      pull-requests: write    # Required to create PRs
+      actions: read           # Required to read workflow files
     
     steps:
       - uses: actions/checkout@v4
