@@ -22,4 +22,4 @@ jobs:
           repo-name: ${{ github.event.repository.name }}
           labels: "dependencies,security"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
