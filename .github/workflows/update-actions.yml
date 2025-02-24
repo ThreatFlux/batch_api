@@ -17,7 +17,6 @@ jobs:
       - name: Update GitHub Actions
         uses: ThreatFlux/githubWorkFlowChecker@50e43582977f983f8dfd57a049ea90a0e8cb971e #v1.20250224.9
         with:
-          token: ${{ secrets.GIT_TOKEN }}
           owner: ${{ github.repository_owner }}
           repo-name: ${{ github.event.repository.name }}
           labels: "dependencies,security"
