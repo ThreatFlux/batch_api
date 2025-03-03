@@ -14,9 +14,9 @@ jobs:
       actions: read           # Required to read workflow files
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
       - name: Update GitHub Actions
-        uses: ThreatFlux/githubWorkFlowChecker@50e43582977f983f8dfd57a049ea90a0e8cb971e #v1.20250224.9
+        uses: ThreatFlux/githubWorkFlowChecker@a7a1d03c888c73c13d7084a25408c2d5b08cdaae  # v1.20250225.1
         with:
           owner: ${{ github.repository_owner }}
           repo-name: ${{ github.event.repository.name }}
