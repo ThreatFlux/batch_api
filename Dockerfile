@@ -19,7 +19,6 @@ COPY --from=builder /home/python_builder/.local /home/python_builder/.local
 
 # Copy source code and tests
 COPY src/ src/
-COPY tests/ tests/
 COPY docs/ docs/
 COPY setup.py .
 COPY pyproject.toml .
@@ -28,7 +27,7 @@ COPY requirements.txt .
 USER root
 
 RUN mkdir -p data output && \
-    chown -R python_builder:python_builder data output src tests docs
+    chown -R python_builder:python_builder data output src docs
 USER python_builder
 # Create necessary directories
 RUN pip3 install -e ".[dev]"
