@@ -9,15 +9,71 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, TypeVar, Protocol, Any
+from typing import Dict, List, Optional, TypeVar, Protocol, Any, TypedDict, Union, Literal, cast
+from typing_extensions import TypeGuard
 
 # Third-party imports
 import anthropic
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 from anthropic.types.messages import MessageBatch, MessageBatchIndividualResponse
-from anthropic.types.messages.batch_create_params import Request
 
 from ruamel.yaml import YAML
+
+
+# Custom type definitions
+class TextBlock(TypedDict):
+    """Type definition for text blocks."""
+
+    type: Literal["text"]
+    text: str
+
+
+class BatchMessageContent(TypedDict):
+    """Type definition for batch message content."""
+
+    content: List[TextBlock]
+
+
+class MessageBatchSucceededResult(TypedDict):
+    """Type definition for successful batch results."""
+
+    type: Literal["succeeded"]
+    message: BatchMessageContent
+
+
+class MessageBatchErroredResult(TypedDict):
+    """Type definition for errored batch results."""
+
+    type: Literal["errored"]
+    error: str
+
+
+class MessageBatchCanceledResult(TypedDict):
+    """Type definition for canceled batch results."""
+
+    type: Literal["canceled"]
+
+
+class MessageBatchExpiredResult(TypedDict):
+    """Type definition for expired batch results."""
+
+    type: Literal["expired"]
+
+
+class RequestWithCustomId(TypedDict):
+    """Request type with required custom_id and params."""
+
+    custom_id: str
+    params: MessageCreateParamsNonStreaming
+
+
+ContentBlock = Union[TextBlock, Dict[str, Any]]
+BatchResultType = Union[
+    MessageBatchSucceededResult,
+    MessageBatchErroredResult,
+    MessageBatchCanceledResult,
+    MessageBatchExpiredResult,
+]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -53,7 +109,7 @@ class MessageContent(BatchComponent):
 
     def validate(self) -> bool:
         """Validate message content properties."""
-        return bool(self.type)
+        return bool(getattr(self, "type", None))
 
 
 class BatchMessage(BatchComponent):
@@ -69,10 +125,26 @@ class BatchMessage(BatchComponent):
         return bool(self.content)
 
 
+# Type guard functions
+def is_text_block(block: Dict[str, Any]) -> TypeGuard[TextBlock]:
+    """Type guard to check if a content block is a TextBlock."""
+    return isinstance(block, dict) and block.get("type") == "text" and "text" in block
+
+
+def is_errored_result(result: Dict[str, Any]) -> TypeGuard[MessageBatchErroredResult]:
+    """Type guard to check if a batch result is an error result."""
+    return isinstance(result, dict) and result.get("type") == "errored"
+
+
+def is_succeeded_result(result: Dict[str, Any]) -> TypeGuard[MessageBatchSucceededResult]:
+    """Type guard to check if a batch result is a success result."""
+    return isinstance(result, dict) and result.get("type") == "succeeded"
+
+
 class BatchResult(BatchComponent):
     """Protocol for batch result."""
 
-    type: str
+    type: Literal["succeeded", "errored", "canceled", "expired"]
     message: BatchMessage
     error: Optional[str]
 
@@ -122,14 +194,14 @@ class BatchProcessor:  # pylint: disable=R0903
         """Initialize batch processor with Anthropic client."""
         self.client = client
 
-    def create_batch_request(self, summary_data: Dict[str, Any], custom_id: str) -> Request:
+    def create_batch_request(self, summary_data: Dict[str, Any], custom_id: str) -> RequestWithCustomId:
         """Create a batch request for the summary data."""
         parsed_data = self._parse_xml_content(summary_data.get("content", ""))
         system_message = self._create_system_message(parsed_data)
 
-        return Request(
-            custom_id=custom_id,
-            params=MessageCreateParamsNonStreaming(
+        request: RequestWithCustomId = {
+            "custom_id": custom_id,
+            "params": MessageCreateParamsNonStreaming(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=8192,
                 system=system_message,
@@ -137,7 +209,8 @@ class BatchProcessor:  # pylint: disable=R0903
                     {"role": "user", "content": "Please analyze this environment and provide a detailed report."}
                 ],
             ),
-        )
+        }
+        return request
 
     def _parse_xml_content(self, content: str) -> Dict[str, Any]:
         """Parse XML-style tokens from content."""
@@ -228,18 +301,18 @@ class BatchFileProcessor:  # pylint: disable=R0903
 
     def process_files(self, file_paths: List[Path]) -> None:
         """Process multiple files in a batch."""
-        requests = []
+        requests: List[RequestWithCustomId] = []
         summaries: Dict[str, Dict[str, Any]] = {}
 
         for file_path in file_paths:
             request, summary = self._prepare_file_request(file_path)
             if request:
                 requests.append(request)
-                summaries[request.get("custom_id")] = summary
+                summaries[request["custom_id"]] = summary
         if requests:
             self._process_batch_requests(requests, summaries)
 
-    def _prepare_file_request(self, file_path: Path) -> tuple[Optional[Request], Dict[str, Any]]:
+    def _prepare_file_request(self, file_path: Path) -> tuple[Optional[RequestWithCustomId], Dict[str, Any]]:
         """Prepare a batch request for a file."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -258,7 +331,9 @@ class BatchFileProcessor:  # pylint: disable=R0903
             logger.error("Permission denied: %s", file_path)
             raise
 
-    def _process_batch_requests(self, requests: List[Request], summaries: Dict[str, Dict[str, Any]]) -> None:
+    def _process_batch_requests(
+        self, requests: List[RequestWithCustomId], summaries: Dict[str, Dict[str, Any]]
+    ) -> None:
         """Process a batch of requests."""
         try:
             message_batch = self.client.messages.batches.create(requests=requests)
@@ -300,35 +375,52 @@ class BatchFileProcessor:  # pylint: disable=R0903
                 logger.error("No file info found for custom_id: %s", custom_id)
                 continue
 
-            if response.result.type == "succeeded":
+            result_dict = cast(Dict[str, Any], response.result)
+            if is_succeeded_result(result_dict):
                 self._save_successful_result(response, file_info, yaml_handler)
+            elif is_errored_result(result_dict):
+                logger.error("Failed to process request %s: %s", custom_id, result_dict["error"])
             else:
-                logger.error("Failed to process request %s: %s", custom_id, response.result.error or "Unknown error")
+                logger.error("Failed to process request %s: Unknown error", custom_id)
 
     def _validate_batch_response(self, result: Any) -> Optional[MessageBatchIndividualResponse]:
         """Validate and cast batch response."""
         try:
-            response = result
-            if not isinstance(response, MessageBatchIndividualResponse):
+            if not isinstance(result, MessageBatchIndividualResponse):
                 logger.error("Invalid response format")
                 return None
-            return response
-        except ValueError:
+            return result
+        except (ValueError, AttributeError):
             logger.error("Invalid response format")
             return None
-        except AttributeError:
-            logger.error("Invalid response format")
-            return None
+
+    def _process_content_block(self, block: Dict[str, Any]) -> Optional[str]:
+        """Process a content block and extract text if available.
+
+        Args:
+            block: The content block to process
+
+        Returns:
+            The text content if available, None otherwise
+        """
+        if is_text_block(block):
+            return block["text"]
+        return None
 
     def _save_successful_result(
         self, response: MessageBatchIndividualResponse, file_info: Dict[str, Any], yaml_handler: YAML
     ) -> None:
         """Save successful batch result."""
         try:
+            result_dict = cast(Dict[str, Any], response.result)
+            if not is_succeeded_result(result_dict):
+                logger.error("Unexpected result type: %s", result_dict.get("type"))
+                return
+
             content_parts = []
-            for content_item in response.result.message.content:
-                if content_item.type == "text" and content_item.text:
-                    content_parts.append(content_item.text)
+            for content_item in result_dict["message"]["content"]:
+                if text := self._process_content_block(cast(Dict[str, Any], content_item)):
+                    content_parts.append(text)
 
             response_text = "\n\n".join(content_parts) if content_parts else "No content available"
 

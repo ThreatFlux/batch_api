@@ -5,12 +5,13 @@ import json
 # Standard library imports
 import logging
 import time
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 
 # Third-party imports
 from anthropic import RateLimitError, Anthropic
 from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 from anthropic.types.messages.batch_create_params import Request
+from anthropic.types import TextBlockParam
 
 # Local imports
 from .config import (
@@ -244,7 +245,7 @@ class BatchProcessor:
             "- Relevant references and documentation\n\n"
         )
 
-    def _create_system_prompt(self, formatted_audit_ops: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _create_system_prompt(self, formatted_audit_ops: Dict[str, Any]) -> Union[str, List[TextBlockParam]]:
         """Create system prompt for the model.
 
         Args:
@@ -253,45 +254,44 @@ class BatchProcessor:
         Returns:
             List[Dict[str, Any]]: List of system message content blocks
         """
-        return [
-            # Base system instruction - not cached since it's small
-            {
-                "type": "text",
-                "text": (
-                    "You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.\n"
-                    "Your task is to create detailed threat models that:\n"
-                    "1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors\n"
-                    "2. Provide concrete detection strategies using actual audit operations\n"
-                    "3. Include example audit logs showing what malicious activity looks like\n"
-                    "4. Define behavioral analytics and baseline deviation monitoring\n"
-                    "5. Specify technical, administrative, and monitoring controls\n\n"
-                    "For each technique:\n"
-                    "- Use the MITRE data to understand the attack methodology\n"
-                    "- Map relevant audit operations that could detect this activity\n"
-                    "- Create example logs showing suspicious patterns\n"
-                    "- Define specific detection rules and thresholds\n"
-                    "- Provide actionable mitigation strategies\n\n"
-                    "Key Requirements:\n"
-                    "1. Every attack vector must include specific audit operations for detection\n"
-                    "2. Example logs must show realistic field names and values\n"
-                    "3. Detection strategies must include concrete thresholds and time windows\n"
-                    "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
-                ),
-            },
-            # Large reference data - cached since it's reused across requests
-            {
-                "type": "text",
-                "text": json.dumps(
-                    {
-                        "mitre_data": self.data_processor.mitre_data.to_dict(),
-                        "idp_data": self.data_processor.idp_data.to_dict(),
-                        "audit_ops": formatted_audit_ops,
-                    },
-                    indent=2,
-                ),
-                "cache_control": {"type": "ephemeral"},
-            },
-        ]
+        base_instruction: TextBlockParam = {
+            "type": "text",
+            "text": (
+                "You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.\n"
+                "Your task is to create detailed threat models that:\n"
+                "1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors\n"
+                "2. Provide concrete detection strategies using actual audit operations\n"
+                "3. Include example audit logs showing what malicious activity looks like\n"
+                "4. Define behavioral analytics and baseline deviation monitoring\n"
+                "5. Specify technical, administrative, and monitoring controls\n\n"
+                "For each technique:\n"
+                "- Use the MITRE data to understand the attack methodology\n"
+                "- Map relevant audit operations that could detect this activity\n"
+                "- Create example logs showing suspicious patterns\n"
+                "- Define specific detection rules and thresholds\n"
+                "- Provide actionable mitigation strategies\n\n"
+                "Key Requirements:\n"
+                "1. Every attack vector must include specific audit operations for detection\n"
+                "2. Example logs must show realistic field names and values\n"
+                "3. Detection strategies must include concrete thresholds and time windows\n"
+                "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
+            ),
+        }
+
+        reference_data: TextBlockParam = {
+            "type": "text",
+            "text": json.dumps(
+                {
+                    "mitre_data": self.data_processor.mitre_data.to_dict(),
+                    "idp_data": self.data_processor.idp_data.to_dict(),
+                    "audit_ops": formatted_audit_ops,
+                },
+                indent=2,
+            ),
+            "cache_control": {"type": "ephemeral"},
+        }
+
+        return [base_instruction, reference_data]
 
     def _create_technique_prompt(self, technique_id: str, audit_ops: dict) -> str:
         """Create a detailed prompt for a specific MITRE technique.

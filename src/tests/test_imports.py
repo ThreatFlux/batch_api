@@ -8,37 +8,38 @@ SRC_PATH = str(Path(__file__).parent.parent / "src")
 sys.path.insert(0, SRC_PATH)
 
 
-def test_imports():
+def test_imports() -> None:
     """Test that all package imports work correctly."""
     try:
         # Try importing the package
         import threat_model  # pylint: disable=C0415
 
-        if not threat_model:
-            assert False
+        # Use proper assertion instead of truthy check
+        assert threat_model is not None
         print("✓ Successfully imported threat_model package")
+
         # Try importing core components
         from threat_model.core import (
             DataProcessor,
             ThreatModelGenerator,
             DEFAULT_MODEL,
             MAX_TOKENS,
-        )# pylint: disable=C0415
+        )  # pylint: disable=C0415
 
-        if not DataProcessor or not ThreatModelGenerator:
-            assert False
-        if not DEFAULT_MODEL or not MAX_TOKENS:
-            assert False
+        # Verify class existence without truthy check
+        assert DataProcessor is not None
+        assert ThreatModelGenerator is not None
+        assert DEFAULT_MODEL is not None
+        assert MAX_TOKENS is not None
         print("✓ Successfully imported core components")
-        # Try creating instances
+
+        # Create and verify instances
         processor = DataProcessor()
-        if not processor:
-            assert False
         generator = ThreatModelGenerator(api_key="test")
-        if not generator:
-            assert False
+
+        assert isinstance(processor, DataProcessor)
+        assert isinstance(generator, ThreatModelGenerator)
         print("✓ Successfully created class instances")
-        assert True
 
     except Exception as e:  # pylint: disable=W0703
         print(f"✗ Import test failed: {str(e)}")
