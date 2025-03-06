@@ -11,10 +11,10 @@ IMAGE_NAME := threat-model-generator
 IMAGE_TAG := main
 
 # Python settings
-VENV := venv
+VENV := .venv
 PYTHON_VERSION := 3.13
 SRC_DIR := src
-TEST_DIR := tests
+TEST_DIR := src/tests
 
 .PHONY: all clean install test lint format docker-build docker-run help
 
@@ -42,6 +42,7 @@ clean:
 	rm -rf test-results.xml
 	rm -rf junit/
 	rm -rf .mypy_cache/
+	rm -rf test-reports/
 	rm -rf reports/
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
@@ -52,9 +53,10 @@ clean:
 	find . -type f -name "test-results.xml" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 
+
 # Run fast tests (no coverage) for quick feedback
 test: install
-	$(VENV)/bin/pytest tests/ -v
+	$(VENV)/bin/pytest $(TEST_DIR) -v
 
 # Run linting and type checking
 lint: install

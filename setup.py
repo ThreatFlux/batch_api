@@ -1,28 +1,21 @@
-"""Setup configuration for threat_model package."""
-
 from setuptools import setup, find_packages
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
     name="threat_model",
-    version="0.2.0",
-    author="wyattroersma@gmail.com",
-    description="Threat model generation for Microsoft 365 and Entra ID",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
+    version="0.1.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    install_requires=[
+        "pydantic>=2.0.0",
+        "ruamel.yaml>=0.17.0",
+        "jsonschema>=4.17.0"
+    ],
     python_requires=">=3.13",
-    install_requires=requirements,
+    author="Cline",
+    description="A tool for generating threat models with batch summaries",
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Intended Audience :: Information Technology",
-        "Topic :: Security",
+        "Intended Audience :: Developers",
         "Programming Language :: Python :: 3.13",
     ],
 )

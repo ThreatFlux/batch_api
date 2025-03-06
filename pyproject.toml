@@ -80,5 +80,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "-ra -q --cov=threat_model --cov-report=html --html=test-reports/report.html --timeout=300"
 testpaths = [
-    "tests",
+    "src/tests",
 ]

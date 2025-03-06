@@ -1,8 +1,6 @@
 """Unit tests for the configuration module."""
 
-import os
 from pathlib import Path
-import pytest
 from threat_model.core import config
 
 

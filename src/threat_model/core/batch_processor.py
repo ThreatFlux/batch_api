@@ -59,14 +59,14 @@ class BatchProcessor:
         system_prompt = self._create_system_prompt(formatted_audit_ops)
         return {
             "custom_id": custom_id,
-            "params": {
-                "model": DEFAULT_MODEL,
-                "max_tokens": MAX_TOKENS,
-                "system": system_prompt,
-                "messages": [
+            "params": MessageCreateParamsNonStreaming(
+                model=DEFAULT_MODEL,
+                max_tokens=MAX_TOKENS,
+                system=system_prompt,
+                messages=[
                     {"role": "user", "content": self._create_technique_prompt(technique_id, formatted_audit_ops)}
                 ],
-            },
+            ),
         }
 
     def process_batch(self, technique_ids: List[str], batch_start: int) -> Dict[str, str]:
@@ -93,27 +93,13 @@ class BatchProcessor:
             except KeyError as ke:
                 logger.error("Key error for technique %s: %s", technique_id, str(ke))
                 continue
-            except Exception as e:  # disable=W0718 disable=bare-except
-                logger.error("Unexpected error for technique %s: %s", technique_id, str(e))
-                continue
         # Check if there are requests to process
         if not requests:
             return batch_content
         # Process requests in batches
         try:
-            # Convert to Request objects
-            request_objects = [
-                Request(
-                    custom_id=req["custom_id"],
-                    params=MessageCreateParamsNonStreaming(
-                        model=req["params"]["model"],
-                        max_tokens=req["params"]["max_tokens"],
-                        messages=req["params"]["messages"],
-                        system=req["params"]["system"],
-                    ),
-                )
-                for req in requests
-            ]
+            # Process requests directly since they're already in correct format
+            request_objects = [Request(custom_id=req["custom_id"], params=req["params"]) for req in requests]
             # Submit batch
             message_batch = self.client.messages.batches.create(requests=request_objects)
             logger.info("Batch submitted successfully. Batch ID: %s", message_batch.id)
@@ -125,8 +111,6 @@ class BatchProcessor:
         except RateLimitError as e:
             logger.error("Rate limit exceeded. Retrying in %d seconds. %s", SLEEP_TIME, str(e))
             time.sleep(SLEEP_TIME)
-        except Exception as e:  # disable=W0718
-            logger.error("Error processing batch: %s", str(e))
         # Handle empty batch
         return batch_content
 
@@ -179,13 +163,13 @@ class BatchProcessor:
                     break
                 logger.info("Batch %s still processing. Status: %s", batch_id, batch_status.processing_status)
                 time.sleep(SLEEP_TIME)
+            except KeyboardInterrupt as e:
+                logger.error("Batch %s processing interrupted", batch_id, str(e))
+                break
             except RateLimitError as e:
                 logger.error(
                     "Rate limit exceeded while checking batch status. Retrying in %d seconds. %s", SLEEP_TIME, str(e)
                 )
-                time.sleep(SLEEP_TIME)
-            except Exception as e:  # disable=W0718 disable=bare-except
-                logger.error("Error checking batch status: %s", str(e))
                 time.sleep(SLEEP_TIME)
 
     def _process_batch_results(self, batch_id: str) -> Dict[str, str]:
@@ -219,13 +203,15 @@ class BatchProcessor:
             output_file: Path to output file
             all_content: Dictionary of generated content
         """
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             # Write introduction
             f.write(self._create_introduction())
             # Write table of contents
             sorted_techniques = sorted(all_content.items(), key=lambda x: int(x[0].split("_")[1]))
             f.write("## Table of Contents\n\n")
             for technique_id, content in sorted_techniques:
+                # Parse technique ID
+                logger.debug("Parsing technique ID: %s", technique_id)
                 # Extract title from content
                 title = next((line for line in content.split("\n") if line.startswith("# Threat Model:")), "")
                 if title:
@@ -260,39 +246,54 @@ class BatchProcessor:
             "- Relevant references and documentation\n\n"
         )
 
-    def _create_system_prompt(self, formatted_audit_ops: Dict[str, Any]) -> str:
+    def _create_system_prompt(self, formatted_audit_ops: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Create system prompt for the model.
 
         Args:
             formatted_audit_ops: Dictionary of formatted audit operations
 
         Returns:
-            str: System prompt for the model
+            List[Dict[str, Any]]: List of system message content blocks
         """
-        return (
-            "You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.\n"
-            "Your task is to create detailed threat models that:\n"
-            "1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors\n"
-            "2. Provide concrete detection strategies using actual audit operations\n"
-            "3. Include example audit logs showing what malicious activity looks like\n"
-            "4. Define behavioral analytics and baseline deviation monitoring\n"
-            "5. Specify technical, administrative, and monitoring controls\n\n"
-            "For each technique:\n"
-            "- Use the MITRE data to understand the attack methodology\n"
-            "- Map relevant audit operations that could detect this activity\n"
-            "- Create example logs showing suspicious patterns\n"
-            "- Define specific detection rules and thresholds\n"
-            "- Provide actionable mitigation strategies\n\n"
-            "Reference Data for Correlation:\n"
-            f"MITRE Techniques:\n{json.dumps(self.data_processor.mitre_data.to_dict(), indent=2)}\n\n"
-            f"IDP Mappings:\n{json.dumps(self.data_processor.idp_data.to_dict(), indent=2)}\n\n"
-            f"Available Audit Operations:\n{json.dumps(formatted_audit_ops, indent=2)}\n\n"
-            "Key Requirements:\n"
-            "1. Every attack vector must include specific audit operations for detection\n"
-            "2. Example logs must show realistic field names and values\n"
-            "3. Detection strategies must include concrete thresholds and time windows\n"
-            "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
-        )
+        return [
+            # Base system instruction - not cached since it's small
+            {
+                "type": "text",
+                "text": (
+                    "You are a cybersecurity expert specialized in threat modeling for Microsoft 365 and Entra ID.\n"
+                    "Your task is to create detailed threat models that:\n"
+                    "1. Map MITRE ATT&CK techniques to specific Microsoft 365 and Entra ID attack vectors\n"
+                    "2. Provide concrete detection strategies using actual audit operations\n"
+                    "3. Include example audit logs showing what malicious activity looks like\n"
+                    "4. Define behavioral analytics and baseline deviation monitoring\n"
+                    "5. Specify technical, administrative, and monitoring controls\n\n"
+                    "For each technique:\n"
+                    "- Use the MITRE data to understand the attack methodology\n"
+                    "- Map relevant audit operations that could detect this activity\n"
+                    "- Create example logs showing suspicious patterns\n"
+                    "- Define specific detection rules and thresholds\n"
+                    "- Provide actionable mitigation strategies\n\n"
+                    "Key Requirements:\n"
+                    "1. Every attack vector must include specific audit operations for detection\n"
+                    "2. Example logs must show realistic field names and values\n"
+                    "3. Detection strategies must include concrete thresholds and time windows\n"
+                    "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
+                ),
+            },
+            # Large reference data - cached since it's reused across requests
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "mitre_data": self.data_processor.mitre_data.to_dict(),
+                        "idp_data": self.data_processor.idp_data.to_dict(),
+                        "audit_ops": formatted_audit_ops,
+                    },
+                    indent=2,
+                ),
+                "cache_control": {"type": "ephemeral"},
+            },
+        ]
 
     def _create_technique_prompt(self, technique_id: str, audit_ops: dict) -> str:
         """Create a detailed prompt for a specific MITRE technique.

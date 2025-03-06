@@ -1,19 +1,24 @@
 """Unit tests for the threat model generator module."""
 
 from pathlib import Path
-import json
-from typing import Dict, Any, Generator
+from typing import Dict, Generator
+from unittest.mock import Mock, patch, MagicMock
+
 import pandas as pd
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 import yaml
-from anthropic import Anthropic
-from anthropic.types.messages.batch_create_params import Request
-from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
-
-from threat_model.core.batch_processor import BatchProcessor
 from threat_model.core.generator import ThreatModelGenerator
-from threat_model.core.config import DEFAULT_MODEL, MAX_TOKENS
+
+
+test_template = {
+    "system_prompt": "System prompt content",
+    "system_prompt_summary": "System prompt summary",
+    "technique_model_template": "Technique model template",
+    "section_template": "Section template",
+    "correlation_prompt": "Correlation prompt",
+    "group_prompt": "Group prompt",
+    "validation_prompt": "Validation prompt",
+}
 
 
 @pytest.fixture
@@ -25,7 +30,8 @@ def mock_anthropic() -> Generator[Mock, None, None]:
 
 @pytest.fixture
 def generator(mock_anthropic: Mock) -> ThreatModelGenerator:
-    """Create a ThreatModelGenerator instance for testing."""
+    """Create a ThreatModelGenerator instance for testing.
+    mock_anthropic: Mock Anthropic client."""
     return ThreatModelGenerator(api_key="test-key")
 
 
@@ -53,18 +59,11 @@ Account Access,UserLoggedIn,User successfully logged in"""
     audit_path = tmp_path / "audit.csv"
     audit_path.write_text(audit_data)
     # Create templates
-    templates = {
-        "system_prompt": "System prompt content",
-        "technique_model_template": "Technique model template",
-        "section_template": "Section template",
-        "correlation_prompt": "Correlation prompt",
-        "group_prompt": "Group prompt",
-        "validation_prompt": "Validation prompt",
-    }
+    templates = test_template
     template_dir = tmp_path / "templates"
     template_dir.mkdir()
     template_path = template_dir / "templates.yaml"
-    with open(template_path, "w") as f:
+    with open(template_path, "w", encoding="utf-8") as f:
         yaml.dump(templates, f)
     return {"mitre_path": mitre_path, "idp_path": idp_path, "audit_path": audit_path, "template_path": template_path}
 
@@ -105,14 +104,7 @@ def test_load_templates_error(mock_anthropic: Mock, tmp_path: Path) -> None:
 def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None:
     """Test template loading."""
     # Create test templates with expected structure
-    templates = {
-        "system_prompt": "System prompt content",
-        "technique_model_template": "Technique model template",
-        "section_template": "Section template",
-        "correlation_prompt": "Correlation prompt",
-        "group_prompt": "Group prompt",
-        "validation_prompt": "Validation prompt",
-    }
+    templates = test_template
     template_path = tmp_path / "templates.yaml"
     with open(template_path, "w") as f:
         yaml.dump(templates, f)
