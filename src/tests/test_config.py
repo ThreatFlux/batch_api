@@ -4,7 +4,7 @@ from pathlib import Path
 from threat_model.core import config
 
 
-def test_project_paths():
+def test_project_paths() -> None:
     """Test project path configurations."""
     assert isinstance(config.PROJECT_ROOT, Path)
     assert isinstance(config.DATA_DIR, Path)
@@ -13,7 +13,7 @@ def test_project_paths():
     assert isinstance(config.CACHE_DIR, Path)
 
 
-def test_model_settings():
+def test_model_settings() -> None:
     """Test model configuration settings."""
     assert isinstance(config.DEFAULT_MODEL, str)
     assert isinstance(config.MAX_TOKENS, int)
@@ -22,7 +22,7 @@ def test_model_settings():
     assert config.BATCH_SIZE > 0
 
 
-def test_csv_settings():
+def test_csv_settings() -> None:
     """Test CSV configuration settings."""
     required_settings = ["required_columns", "index_column", "encoding"]
     file_types = ["mitre", "idp", "audit"]
@@ -50,7 +50,7 @@ def test_csv_settings():
         assert settings["encoding"].lower() == "utf-8"
 
 
-def test_correlation_weights():
+def test_correlation_weights() -> None:
     """Test correlation weight settings."""
     required_weights = ["exact_match", "partial_match", "description_similarity"]
 
@@ -63,14 +63,14 @@ def test_correlation_weights():
         assert 0 <= config.CORRELATION_WEIGHTS[weight] <= 1
 
 
-def test_logging_settings():
+def test_logging_settings() -> None:
     """Test logging configuration."""
     assert isinstance(config.LOG_FORMAT, str)
     assert isinstance(config.LOG_LEVEL, str)
     assert config.LOG_LEVEL in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
-def test_file_patterns():
+def test_file_patterns() -> None:
     """Test file pattern settings."""
     assert isinstance(config.MITRE_FILE_PATTERN, str)
     assert isinstance(config.AUDIT_FILE_PATTERN, str)
@@ -79,20 +79,20 @@ def test_file_patterns():
     assert ".csv" in config.AUDIT_FILE_PATTERN.lower()
 
 
-def test_output_settings():
+def test_output_settings() -> None:
     """Test output configuration settings."""
     assert isinstance(config.THREAT_MODEL_TEMPLATE, str)
     assert isinstance(config.OUTPUT_FILE, str)
     assert ".md" in config.OUTPUT_FILE.lower()
 
 
-def test_cache_settings():
+def test_cache_settings() -> None:
     """Test cache configuration settings."""
     assert isinstance(config.CACHE_EXPIRY, int)
     assert config.CACHE_EXPIRY > 0
 
 
-def test_api_settings():
+def test_api_settings() -> None:
     """Test API configuration settings."""
     assert isinstance(config.API_RETRY_ATTEMPTS, int)
     assert isinstance(config.API_RETRY_DELAY, int)
@@ -100,7 +100,7 @@ def test_api_settings():
     assert config.API_RETRY_DELAY > 0
 
 
-def test_path_relationships():
+def test_path_relationships() -> None:
     """Test relationships between path configurations."""
     # DATA_DIR should be under PROJECT_ROOT
     assert config.PROJECT_ROOT in config.DATA_DIR.parents

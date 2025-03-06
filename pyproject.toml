@@ -52,16 +52,34 @@ threat_model = ["prompts/*.yaml"]
 line-length = 120
 target-version = ['py313']
 include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+skip_string_normalization = false
+skip_magic_trailing_comma = false
+preview = true
+force-exclude = '''
+/(
+    src/tests/fixture_data
+)/
+'''
 
 [tool.pylint]
 init-hook='import sys; sys.path.append("src")'
 ignore-patterns=["test_.*?py"]
 disable = [
-    "C0111",  # missing-docstring
-    "C0103",  # invalid-name
-    "E0401",  # import-error
-    "E1101",  # no-member
-    "W1514",  # Using open without explicitly specifying an encoding (unspecified-encoding)
 ]
 extension-pkg-whitelist = ["numpy", "pandas", "sklearn"]
 generated-members = ["numpy.*", "pandas.*", "sklearn.*"]

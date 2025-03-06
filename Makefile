@@ -1,7 +1,7 @@
 # Makefile for Microsoft 365 Threat Model Generator
 
 # Variables
-PYTHON := python3
+PYTHON := python3.13
 PIP := pip3
 PYTEST := pytest
 PYLINT := pylint
@@ -19,13 +19,14 @@ TEST_DIR := src/tests
 .PHONY: all clean install test lint format docker-build docker-run help
 
 # Default target
-all: clean install test lint
+all: clean install format test lint
 
 # Create virtual environment
 $(VENV)/bin/activate:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install -e ".[dev]"
+	$(VENV)/bin/pip install mypy pylint types-PyYAML
 
 # Install dependencies
 install: $(VENV)/bin/activate
@@ -64,7 +65,7 @@ lint: install
 
 # Format code
 format: install
-	$(VENV)/bin/black $(SRC_DIR) $(TEST_DIR)
+	$(VENV)/bin/black $(SRC_DIR) $(TEST_DIR) --verbose
 
 # Build Docker image
 docker-build:

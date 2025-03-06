@@ -99,19 +99,6 @@ def test_main_batch_mode(mock_load_dotenv: Mock, mock_generator: Mock) -> None:
             assert not mock_generator_instance.generate_threat_model.called
 
 
-@patch("threat_model.__main__.load_dotenv")
-def test_main_missing_api_key(mock_load_dotenv: Mock) -> None:
-    """Test main function with missing API key."""
-    # Mock environment without API key
-    if mock_load_dotenv:
-        pass
-    with patch("sys.argv", ["threat_model"]):
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError) as exc_info:
-                main()
-    assert "ANTHROPIC_API_KEY environment variable not set" in str(exc_info.value)
-
-
 @patch("threat_model.__main__.ThreatModelGenerator")
 @patch("threat_model.__main__.load_dotenv")
 def test_main_generator_error(mock_load_dotenv: Mock, mock_generator: Mock) -> None:

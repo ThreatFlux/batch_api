@@ -1,20 +1,37 @@
 """Unit tests for the data processor module."""
 
+from pathlib import Path
+from typing import Dict, List, Tuple
+
 import pandas as pd
 import pytest
 from threat_model.core.data_processor import DataProcessor
 from threat_model.core.config import CSV_SETTINGS
 
+# Disable specific pylint warnings that are common in pytest files
+# pylint: disable=redefined-outer-name
+
 
 @pytest.fixture
-def data_processor():
-    """Create a DataProcessor instance for testing."""
+def data_processor() -> DataProcessor:
+    """Create a DataProcessor instance for testing.
+
+    Returns:
+        DataProcessor: A configured test instance
+    """
     return DataProcessor()
 
 
 @pytest.fixture
-def sample_data_dir(tmp_path):
-    """Create sample CSV files for testing."""
+def sample_data_dir(tmp_path: Path) -> Dict[str, Path]:
+    """Create sample CSV files for testing.
+
+    Args:
+        tmp_path: Pytest temporary path fixture
+
+    Returns:
+        Dict[str, Path]: Dictionary containing paths to test data files
+    """
     # Create MITRE data
     mitre_data = pd.DataFrame(
         {
@@ -59,7 +76,7 @@ def sample_data_dir(tmp_path):
     return {"mitre_path": mitre_path, "idp_path": idp_path, "audit_path": audit_path}
 
 
-def test_load_csv_mitre(data_processor, sample_data_dir):
+def test_load_csv_mitre(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test loading MITRE CSV file."""
     data_processor.load_csv(sample_data_dir["mitre_path"], "mitre")
     assert not data_processor.mitre_data.empty
@@ -67,7 +84,7 @@ def test_load_csv_mitre(data_processor, sample_data_dir):
     assert all(col in data_processor.mitre_data.columns for col in CSV_SETTINGS["mitre"]["required_columns"])
 
 
-def test_load_csv_idp(data_processor, sample_data_dir):
+def test_load_csv_idp(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test loading IDP CSV file."""
     data_processor.load_csv(sample_data_dir["idp_path"], "idp")
     assert not data_processor.idp_data.empty
@@ -75,7 +92,7 @@ def test_load_csv_idp(data_processor, sample_data_dir):
     assert all(col in data_processor.idp_data.columns for col in CSV_SETTINGS["idp"]["required_columns"])
 
 
-def test_load_csv_audit(data_processor, sample_data_dir):
+def test_load_csv_audit(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test loading audit CSV file."""
     data_processor.load_csv(sample_data_dir["audit_path"], "audit")
     assert not data_processor.audit_data.empty
@@ -83,17 +100,17 @@ def test_load_csv_audit(data_processor, sample_data_dir):
     assert all(col in data_processor.audit_data.columns for col in CSV_SETTINGS["audit"]["required_columns"])
 
 
-def test_load_csv_invalid_file(data_processor, tmp_path):
+def test_load_csv_invalid_file(data_processor: DataProcessor, tmp_path: Path) -> None:
     """Test loading invalid CSV file."""
     invalid_path = tmp_path / "invalid.csv"
-    with open(invalid_path, "w") as f:
+    with open(invalid_path, "w", encoding="utf-8") as f:
         f.write("invalid,csv,file\n")
 
     with pytest.raises(ValueError):
         data_processor.load_csv(invalid_path, "mitre")
 
 
-def test_correlate_techniques_with_operations(data_processor, sample_data_dir):
+def test_correlate_techniques_with_operations(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test correlation between techniques and operations."""
     # Load test data
     data_processor.load_csv(sample_data_dir["mitre_path"], "mitre")
@@ -106,11 +123,11 @@ def test_correlate_techniques_with_operations(data_processor, sample_data_dir):
     # Verify correlation results
     assert isinstance(correlation_matrix, dict)
     assert len(correlation_matrix) > 0
-    for technique_id, correlations in correlation_matrix.items():
+    for _, correlations in correlation_matrix.items():
         verify_results(correlations)
 
 
-def test_get_related_techniques(data_processor, sample_data_dir):
+def test_get_related_techniques(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test finding related techniques."""
     # Load and correlate data
     data_processor.load_csv(sample_data_dir["mitre_path"], "mitre")
@@ -125,8 +142,9 @@ def test_get_related_techniques(data_processor, sample_data_dir):
     verify_results(related)
 
 
-def verify_results(related):
+def verify_results(related: List[Tuple[str, float]]) -> None:
     """Verify related techniques results.
+
     Args:
         related: List of related techniques or operations with similarity scores
     """
@@ -139,7 +157,7 @@ def verify_results(related):
         assert 0 <= value_to_check[1] <= 1
 
 
-def test_get_technique_groups(data_processor, sample_data_dir):
+def test_get_technique_groups(data_processor: DataProcessor, sample_data_dir: Dict[str, Path]) -> None:
     """Test grouping related techniques."""
     # Load and correlate data
     data_processor.load_csv(sample_data_dir["mitre_path"], "mitre")
@@ -157,8 +175,9 @@ def test_get_technique_groups(data_processor, sample_data_dir):
         assert all(isinstance(tid, str) for tid in group)
 
 
-def test_calculate_correlation_score(data_processor):
+def test_calculate_correlation_score(data_processor: DataProcessor) -> None:
     """Test correlation score calculation."""
+    # pylint: disable=protected-access
     # Create test data
     technique = pd.Series({"Technique": "Brute Force", "Description": "Test brute force attack description"})
     operation = pd.Series({"Operation": "UserLoginFailed", "Description": "Failed login attempt"})
@@ -172,8 +191,9 @@ def test_calculate_correlation_score(data_processor):
     assert 0 <= score <= 1
 
 
-def test_preprocess_dataframe(data_processor):
+def test_preprocess_dataframe(data_processor: DataProcessor) -> None:
     """Test DataFrame preprocessing."""
+    # pylint: disable=protected-access
     # Create test DataFrame
     df = pd.DataFrame({"col1": [" test ", "value ", None], "col2": ["data", None, "test "]})
 

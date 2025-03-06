@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="threat_model",
-    version="0.1.0",
+    version="0.1.1",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
@@ -11,7 +11,7 @@ setup(
         "jsonschema>=4.17.0"
     ],
     python_requires=">=3.13",
-    author="Cline",
+    author="Wyatt Roersma",
     description="A tool for generating threat models with batch summaries",
     classifiers=[
         "Development Status :: 3 - Alpha",
