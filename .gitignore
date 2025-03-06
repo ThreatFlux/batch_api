@@ -5,3 +5,8 @@ __pycache__
 /src/tests/htmlcov/
 /src/tests/test-reports/
 /src/tests/.coverage
+/venv3/
+build/*
+.idea/*
+output*
+src/threat_model.egg-info*
