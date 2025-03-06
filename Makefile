@@ -19,13 +19,14 @@ TEST_DIR := src/tests
 .PHONY: all clean install test lint format docker-build docker-run help
 
 # Default target
-all: clean install test lint
+all: clean install format test lint security-check
 
 # Create virtual environment
 $(VENV)/bin/activate:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install -e ".[dev]"
+	$(VENV)/bin/pip install mypy pylint
 
 # Install dependencies
 install: $(VENV)/bin/activate
