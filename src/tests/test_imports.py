@@ -23,7 +23,7 @@ def test_imports():
             ThreatModelGenerator,
             DEFAULT_MODEL,
             MAX_TOKENS,
-        )  # pylint: disable=C0415
+        )# pylint: disable=C0415
 
         if not DataProcessor or not ThreatModelGenerator:
             assert False
@@ -40,7 +40,7 @@ def test_imports():
         print("✓ Successfully created class instances")
         assert True
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=W0703
         print(f"✗ Import test failed: {str(e)}")
         import traceback  # pylint: disable=C0415
 

@@ -9,7 +9,7 @@ import pytest
 import yaml
 from threat_model.core.generator import ThreatModelGenerator
 
-
+# Test data
 test_template = {
     "system_prompt": "System prompt content",
     "system_prompt_summary": "System prompt summary",
@@ -20,6 +20,10 @@ test_template = {
     "validation_prompt": "Validation prompt",
 }
 
+# Disable specific pylint warnings that are common in pytest files
+# pylint: disable=redefined-outer-name
+# pylint: disable=missing-function-docstring
+
 
 @pytest.fixture
 def mock_anthropic() -> Generator[Mock, None, None]:
@@ -29,15 +33,28 @@ def mock_anthropic() -> Generator[Mock, None, None]:
 
 
 @pytest.fixture
-def generator(mock_anthropic: Mock) -> ThreatModelGenerator:
+def generator(mock_anthropic: Mock) -> ThreatModelGenerator:  # pylint: disable=unused-argument
     """Create a ThreatModelGenerator instance for testing.
-    mock_anthropic: Mock Anthropic client."""
+
+    Args:
+        mock_anthropic: Mock Anthropic client
+
+    Returns:
+        ThreatModelGenerator: Configured test generator
+    """
     return ThreatModelGenerator(api_key="test-key")
 
 
 @pytest.fixture
-def sample_data_dir(tmp_path: Path) -> Dict[str, Path]:
-    """Create sample data files for testing."""
+def sample_data_dir_test(tmp_path: Path) -> Dict[str, Path]:
+    """Create sample data files for testing.
+
+    Args:
+        tmp_path: Pytest temporary path fixture
+
+    Returns:
+        Dict[str, Path]: Dictionary of test file paths
+    """
     # Create MITRE data
     mitre_data = """TID,Tactic,Technique,Description
 T1110,Initial Access,Brute Force,Adversaries may attempt brute force
@@ -58,6 +75,7 @@ Failed Login,UserLoginFailed,User login attempt failed
 Account Access,UserLoggedIn,User successfully logged in"""
     audit_path = tmp_path / "audit.csv"
     audit_path.write_text(audit_data)
+
     # Create templates
     templates = test_template
     template_dir = tmp_path / "templates"
@@ -65,6 +83,7 @@ Account Access,UserLoggedIn,User successfully logged in"""
     template_path = template_dir / "templates.yaml"
     with open(template_path, "w", encoding="utf-8") as f:
         yaml.dump(templates, f)
+
     return {"mitre_path": mitre_path, "idp_path": idp_path, "audit_path": audit_path, "template_path": template_path}
 
 
@@ -81,7 +100,7 @@ def test_init_error_handling() -> None:
         ThreatModelGenerator(api_key="")
 
 
-def test_load_templates_error(mock_anthropic: Mock, tmp_path: Path) -> None:
+def test_load_templates_error(mock_anthropic: Mock, tmp_path: Path) -> None:  # pylint: disable=unused-argument
     """Test template loading error handling."""
     # Create empty directory to ensure no templates.yaml exists
     empty_dir = tmp_path / "empty"
@@ -103,10 +122,11 @@ def test_load_templates_error(mock_anthropic: Mock, tmp_path: Path) -> None:
 
 def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None:
     """Test template loading."""
+    # pylint: disable=protected-access
     # Create test templates with expected structure
     templates = test_template
     template_path = tmp_path / "templates.yaml"
-    with open(template_path, "w") as f:
+    with open(template_path, "w", encoding="utf-8") as f:
         yaml.dump(templates, f)
 
     # Mock PROMPTS_DIR
@@ -118,9 +138,11 @@ def test_load_templates(generator: ThreatModelGenerator, tmp_path: Path) -> None
         assert all(isinstance(v, str) for v in loaded_templates.values())
 
 
-def test_load_data(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
+def test_load_data(generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path]) -> None:
     """Test data loading."""
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
     assert not generator.data_processor.mitre_data.empty
     assert not generator.data_processor.idp_data.empty
     assert not generator.data_processor.audit_data.empty
@@ -133,10 +155,15 @@ def test_load_data_error(generator: ThreatModelGenerator, tmp_path: Path) -> Non
 
 
 @patch("threat_model.core.generator.jinja2.Template")
-def test_create_section(mock_template: Mock, generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
+def test_create_section(
+    mock_template: Mock, generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path]
+) -> None:
     """Test section creation."""
+    # pylint: disable=protected-access
     # Load test data
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Set up expected template data
     expected_content = "Rendered content"
@@ -190,6 +217,7 @@ def test_create_section(mock_template: Mock, generator: ThreatModelGenerator, sa
 
 def test_calculate_risk_level(generator: ThreatModelGenerator) -> None:
     """Test risk level calculation."""
+    # pylint: disable=protected-access
     # Test Critical risk level
     techniques = [{"id": "T1110", "operations": [("op1", 0.5)] * 16}]
     assert generator._calculate_risk_level(techniques) == "Critical"
@@ -209,6 +237,7 @@ def test_calculate_risk_level(generator: ThreatModelGenerator) -> None:
 
 def test_calculate_impact(generator: ThreatModelGenerator) -> None:
     """Test impact calculation."""
+    # pylint: disable=protected-access
     # Test High impact
     techniques = [{"id": "T1110", "description": "Test with credentials and sensitive data"}]
     assert generator._calculate_impact(techniques) == "High"
@@ -220,6 +249,7 @@ def test_calculate_impact(generator: ThreatModelGenerator) -> None:
 
 def test_calculate_likelihood(generator: ThreatModelGenerator) -> None:
     """Test likelihood calculation."""
+    # pylint: disable=protected-access
     # Test High likelihood
     techniques = [{"id": "T1110", "operations": [("op1", 0.5)] * 21}]
     assert generator._calculate_likelihood(techniques) == "High"
@@ -235,6 +265,7 @@ def test_calculate_likelihood(generator: ThreatModelGenerator) -> None:
 
 def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
     """Test operation combination."""
+    # pylint: disable=protected-access
     techniques = [
         {"id": "T1110", "operations": [("op1", 0.5), ("op2", 0.7)]},
         {"id": "T1078", "operations": [("op2", 0.8), ("op3", 0.6)]},
@@ -251,11 +282,13 @@ def test_get_combined_operations(generator: ThreatModelGenerator) -> None:
 
 
 def test_generate_threat_model(
-    generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path
+    generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path], tmp_path: Path
 ) -> None:
     """Test threat model generation."""
     # Load test data
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Set up test output directory
     output_file = tmp_path / "threat_model.md"
@@ -288,11 +321,13 @@ def test_generate_threat_model(
 
 
 def test_generate_threat_model_io_error(
-    generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path
+    generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path], tmp_path: Path
 ) -> None:
     """Test threat model generation IO error handling."""
     # Load test data
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Mock write_text to raise IOError
     with patch.object(Path, "write_text", side_effect=IOError("Test IO error")):
@@ -301,11 +336,13 @@ def test_generate_threat_model_io_error(
 
 
 def test_generate_threat_model_batch(
-    generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path], tmp_path: Path
+    generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path], tmp_path: Path
 ) -> None:
     """Test batch threat model generation."""
     # Load test data
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Mock batch processor
     with patch.object(generator.batch_processor, "generate_threat_models") as mock_generate:
@@ -313,10 +350,14 @@ def test_generate_threat_model_batch(
         mock_generate.assert_called_once()
 
 
-def test_generate_threat_model_batch_error(generator: ThreatModelGenerator, sample_data_dir: Dict[str, Path]) -> None:
+def test_generate_threat_model_batch_error(
+    generator: ThreatModelGenerator, sample_data_dir_test: Dict[str, Path]
+) -> None:
     """Test batch threat model generation error handling."""
     # Load test data first
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Test value error with empty data first
     generator.data_processor.mitre_data = pd.DataFrame(columns=["TID", "Tactic", "Technique", "Description"])
@@ -324,7 +365,9 @@ def test_generate_threat_model_batch_error(generator: ThreatModelGenerator, samp
         generator.generate_threat_model_batch(["section1"], "output.md")
 
     # Restore test data
-    generator.load_data(sample_data_dir["mitre_path"], sample_data_dir["idp_path"], sample_data_dir["audit_path"])
+    generator.load_data(
+        sample_data_dir_test["mitre_path"], sample_data_dir_test["idp_path"], sample_data_dir_test["audit_path"]
+    )
 
     # Mock the batch processor's wait_for_batch_completion to avoid timeouts
     with patch.object(generator.batch_processor, "_wait_for_batch_completion"):
@@ -340,6 +383,7 @@ def test_generate_threat_model_batch_error(generator: ThreatModelGenerator, samp
 
 def test_create_detection_strategy(generator: ThreatModelGenerator) -> None:
     """Test detection strategy creation."""
+    # pylint: disable=protected-access
     techniques = [{"id": "T1110", "name": "Brute Force", "operations": [("op1", 0.5), ("op2", 0.7)]}]
     strategy = generator._create_detection_strategy(techniques)
     assert isinstance(strategy, dict)
@@ -354,6 +398,7 @@ def test_create_detection_strategy(generator: ThreatModelGenerator) -> None:
 
 def test_create_controls(generator: ThreatModelGenerator) -> None:
     """Test security controls creation."""
+    # pylint: disable=protected-access
     techniques = [{"id": "T1110", "name": "Brute Force", "description": "Test description"}]
     controls = generator._create_controls(techniques)
     assert isinstance(controls, dict)

@@ -64,7 +64,7 @@ lint: install
 
 # Format code
 format: install
-	$(VENV)/bin/black $(SRC_DIR) $(TEST_DIR)
+	$(VENV)/bin/black $(SRC_DIR) $(TEST_DIR) --verbose
 
 # Build Docker image
 docker-build:

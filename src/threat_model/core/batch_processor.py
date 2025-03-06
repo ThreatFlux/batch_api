@@ -163,13 +163,11 @@ class BatchProcessor:
                     break
                 logger.info("Batch %s still processing. Status: %s", batch_id, batch_status.processing_status)
                 time.sleep(SLEEP_TIME)
-            except KeyboardInterrupt as e:
-                logger.error("Batch %s processing interrupted", batch_id, str(e))
+            except KeyboardInterrupt:
+                logger.error("Batch %s processing interrupted", batch_id)
                 break
             except RateLimitError as e:
-                logger.error(
-                    "Rate limit exceeded while checking batch status. Retrying in %d seconds. %s", SLEEP_TIME, str(e)
-                )
+                logger.error("Rate limit exceeded: %s", str(e))
                 time.sleep(SLEEP_TIME)
 
     def _process_batch_results(self, batch_id: str) -> Dict[str, str]:
