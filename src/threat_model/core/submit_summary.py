@@ -42,7 +42,6 @@ class BatchComponent(Protocol):
         raise NotImplementedError
 
 
-
 class MessageContent(BatchComponent):
     """Protocol for message content."""
 
@@ -116,7 +115,7 @@ class BatchProcessingError(Exception):
     """Custom exception for batch processing errors."""
 
 
-class BatchProcessor: # pylint: disable=R0903
+class BatchProcessor:  # pylint: disable=R0903
     """Class to handle batch processing operations."""
 
     def __init__(self, client: anthropic.Anthropic):
@@ -216,7 +215,7 @@ def process_directory(
     batch_handler.process_directory(dir_path, recursive)
 
 
-class BatchFileProcessor: # pylint: disable=R0903
+class BatchFileProcessor:  # pylint: disable=R0903
     """Handler for batch file processing."""
 
     def __init__(self, processor: Any, client: anthropic.Anthropic, output_dir: str):
@@ -321,7 +320,9 @@ class BatchFileProcessor: # pylint: disable=R0903
             logger.error("Invalid response format")
             return None
 
-    def _save_successful_result(self, response: MessageBatchIndividualResponse, file_info: Dict[str, Any], yaml_handler: YAML) -> None:
+    def _save_successful_result(
+        self, response: MessageBatchIndividualResponse, file_info: Dict[str, Any], yaml_handler: YAML
+    ) -> None:
         """Save successful batch result."""
         try:
             content_parts = []
@@ -358,7 +359,7 @@ class BatchFileProcessor: # pylint: disable=R0903
             raise
 
 
-class BatchDirectoryProcessor: # pylint: disable=R0903
+class BatchDirectoryProcessor:  # pylint: disable=R0903
     """Handler for batch directory processing."""
 
     def __init__(self, processor: Any, client: anthropic.Anthropic, output_dir: str):

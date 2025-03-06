@@ -63,11 +63,10 @@ class BatchProcessor:
                 model=DEFAULT_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=system_prompt,
-                messages=[{
-                    "role": "user", 
-                    "content": self._create_technique_prompt(technique_id, formatted_audit_ops)
-                }]
-            )
+                messages=[
+                    {"role": "user", "content": self._create_technique_prompt(technique_id, formatted_audit_ops)}
+                ],
+            ),
         }
 
     def process_batch(self, technique_ids: List[str], batch_start: int) -> Dict[str, str]:
@@ -100,13 +99,7 @@ class BatchProcessor:
         # Process requests in batches
         try:
             # Process requests directly since they're already in correct format
-            request_objects = [
-                Request(
-                    custom_id=req["custom_id"],
-                    params=req["params"]
-                )
-                for req in requests
-            ]
+            request_objects = [Request(custom_id=req["custom_id"], params=req["params"]) for req in requests]
             # Submit batch
             message_batch = self.client.messages.batches.create(requests=request_objects)
             logger.info("Batch submitted successfully. Batch ID: %s", message_batch.id)
@@ -210,7 +203,7 @@ class BatchProcessor:
             output_file: Path to output file
             all_content: Dictionary of generated content
         """
-        with open(output_file,"w", encoding="utf-8") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             # Write introduction
             f.write(self._create_introduction())
             # Write table of contents
@@ -285,18 +278,21 @@ class BatchProcessor:
                     "2. Example logs must show realistic field names and values\n"
                     "3. Detection strategies must include concrete thresholds and time windows\n"
                     "4. Controls must be specific to Microsoft 365 and Entra ID capabilities"
-                )
+                ),
             },
             # Large reference data - cached since it's reused across requests
             {
                 "type": "text",
-                "text": json.dumps({
-                    "mitre_data": self.data_processor.mitre_data.to_dict(),
-                    "idp_data": self.data_processor.idp_data.to_dict(),
-                    "audit_ops": formatted_audit_ops
-                }, indent=2),
-                "cache_control": {"type": "ephemeral"}
-            }
+                "text": json.dumps(
+                    {
+                        "mitre_data": self.data_processor.mitre_data.to_dict(),
+                        "idp_data": self.data_processor.idp_data.to_dict(),
+                        "audit_ops": formatted_audit_ops,
+                    },
+                    indent=2,
+                ),
+                "cache_control": {"type": "ephemeral"},
+            },
         ]
 
     def _create_technique_prompt(self, technique_id: str, audit_ops: dict) -> str:

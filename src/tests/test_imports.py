@@ -13,11 +13,17 @@ def test_imports():
     try:
         # Try importing the package
         import threat_model  # pylint: disable=C0415
+
         if not threat_model:
             assert False
         print("✓ Successfully imported threat_model package")
         # Try importing core components
-        from threat_model.core import DataProcessor, ThreatModelGenerator, DEFAULT_MODEL, MAX_TOKENS # pylint: disable=C0415
+        from threat_model.core import (
+            DataProcessor,
+            ThreatModelGenerator,
+            DEFAULT_MODEL,
+            MAX_TOKENS,
+        )  # pylint: disable=C0415
 
         if not DataProcessor or not ThreatModelGenerator:
             assert False
@@ -36,7 +42,7 @@ def test_imports():
 
     except Exception as e:
         print(f"✗ Import test failed: {str(e)}")
-        import traceback # pylint: disable=C0415
+        import traceback  # pylint: disable=C0415
 
         traceback.print_exc()
         assert False
